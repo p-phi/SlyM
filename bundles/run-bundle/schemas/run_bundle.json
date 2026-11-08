@@ -1,6 +1,6 @@
 {
     "name": "run_bundle",
-    "description": "Run a salaryman agent bundle on a task. Returns the agent's final answer.",
+    "description": "Run a slym agent bundle on a task. Returns the agent's final answer.",
     "script": "tools/run_bundle.sh",
     "parameters": {
         "type": "object",

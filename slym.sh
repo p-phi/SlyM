@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Salaryman
+# SlyM
 # -----------------------------------------------------------------------------
 # A minimal agent defined by its skills.
 #
@@ -10,14 +10,14 @@
 # invocation path; the model can only ask for tools that a file declares.
 #
 # Environment:
-#   SALARYMAN_ENDPOINT   required; chat-completions URL
-#   SALARYMAN_MODEL      required; model name
-#   SALARYMAN_API_KEY    optional; bearer token for a hosted provider
-#   SALARYMAN_PROVIDER   optional; openai-compatible (default) | responses
-#   SALARYMAN_MAX_ITERATIONS  optional; loop cap, default 16
-#   SALARYMAN_THINK_BUFFER  optional; loop exit condition buffer
+#   SLYM_ENDPOINT   required; chat-completions URL
+#   SLYM_MODEL      required; model name
+#   SLYM_API_KEY    optional; bearer token for a hosted provider
+#   SLYM_PROVIDER   optional; openai-compatible (default) | responses
+#   SLYM_MAX_ITERATIONS  optional; loop cap, default 16
+#   SLYM_THINK_BUFFER  optional; loop exit condition buffer
 #
-# Source: https://github.com/p-phi/salaryman
+# Source: https://github.com/p-phi/slym
 # License: MIT — see the LICENSE file in the source repo.
 # Author: P. Phi
 # ============================================================================= 
@@ -28,13 +28,13 @@ USAGE_ERROR=1
 
 # ---------------------------------------------------------------- config
 # Iteration control
-MAX_ITERATIONS="${SALARYMAN_MAX_ITERATIONS:-16}"
+MAX_ITERATIONS="${SLYM_MAX_ITERATIONS:-16}"
 # Allows the model to return pure text responses without tools for up to THINK_BUFFER rounds
-THINK_BUFFER="${SALARYMAN_THINK_BUFFER:-1}"
+THINK_BUFFER="${SLYM_THINK_BUFFER:-1}"
 # Provider shape (default: OpenAI-compatible)
-PROVIDER="${SALARYMAN_PROVIDER:-openai-compatible}"
+PROVIDER="${SLYM_PROVIDER:-openai-compatible}"
 SPIN_PID=""
-API_KEY=${SALARYMAN_API_KEY:-}
+API_KEY=${SLYM_API_KEY:-}
 # ---------------------------------------------------------------- args
 
 TRACE_MESSAGES=""
@@ -45,7 +45,7 @@ TASK=""
 usage() {
   cat >&2 <<EOF
 usage:
-  salaryman <skills> --run <task> [--provider <name>]
+  slym <skills> --run <task> [--provider <name>]
 
 options:
   --run <task>         run an agent on the given task
@@ -59,18 +59,18 @@ providers:
   openai-compatible    OpenAI chat-completions shape (Ollama, Groq, Together, ...)
 
 environment:
-  SALARYMAN_ENDPOINT   required; chat-completions URL
-  SALARYMAN_MODEL      required; model name
-  SALARYMAN_API_KEY    optional; bearer token for a hosted provider
-  SALARYMAN_PROVIDER   optional; default provider shape
-  SALARYMAN_MAX_ITERATIONS  optional; loop cap, default 16
-  SALARYMAN_THINK_BUFFER  optional; max rounds without tool, default 1
+  SLYM_ENDPOINT   required; chat-completions URL
+  SLYM_MODEL      required; model name
+  SLYM_API_KEY    optional; bearer token for a hosted provider
+  SLYM_PROVIDER   optional; default provider shape
+  SLYM_MAX_ITERATIONS  optional; loop cap, default 16
+  SLYM_THINK_BUFFER  optional; max rounds without tool, default 1
 EOF
   exit "$USAGE_ERROR"
 }
 # Display version
 version() {
-  echo "Salaryman v$VERSION"
+  echo "SlyM v$VERSION"
   exit 0
 }
 # Print to stderr
@@ -79,11 +79,11 @@ log_stderr(){
 }
 # Display config
 show_config() {
-  echo "SALARYMAN_ENDPOINT=$SALARYMAN_ENDPOINT" 
-  echo "SALARYMAN_MODEL=$SALARYMAN_MODEL" 
-  echo "SALARYMAN_PROVIDER=$PROVIDER" 
-  echo "SALARYMAN_MAX_ITERATIONS=$MAX_ITERATIONS" 
-  echo "SALARYMAN_THINK_BUFFER=$THINK_BUFFER"   
+  echo "SLYM_ENDPOINT=$SLYM_ENDPOINT" 
+  echo "SLYM_MODEL=$SLYM_MODEL" 
+  echo "SLYM_PROVIDER=$PROVIDER" 
+  echo "SLYM_MAX_ITERATIONS=$MAX_ITERATIONS" 
+  echo "SLYM_THINK_BUFFER=$THINK_BUFFER"   
   exit 0
 }
 # Parse command-line arguments
@@ -234,7 +234,7 @@ call_openai_compatible() {
   ' <<<"$messages_json")
 
   payload=$(jq -n -c \
-    --arg model "$SALARYMAN_MODEL" \
+    --arg model "$SLYM_MODEL" \
     --argjson messages "$wire_messages" \
     --argjson tools "$tools_json" \
     '{model: $model, messages: $messages, tools: $tools, stream: false}')
@@ -252,7 +252,7 @@ post_json() {
   local payload="$1"
   local -a headers=(-H "Content-Type: application/json")
   [[ -n "$API_KEY" ]] && headers+=(-H "Authorization: Bearer $API_KEY")
-  curl -sS "${headers[@]}" -d "$payload" "$SALARYMAN_ENDPOINT"
+  curl -sS "${headers[@]}" -d "$payload" "$SLYM_ENDPOINT"
 }
 
 normalize_response() {
@@ -320,9 +320,9 @@ run_tool() {
 
   local out err rc
   set +e
-  out=$(printf '%s' "$args" | "$script" 2>/tmp/salaryman.err)
+  out=$(printf '%s' "$args" | "$script" 2>/tmp/slym.err)
   rc=$?
-  err=$(cat /tmp/salaryman.err 2>/dev/null)
+  err=$(cat /tmp/slym.err 2>/dev/null)
   set -e
 
   if [[ $rc -ne 0 ]]; then
@@ -357,8 +357,8 @@ thinking_stop() {
 
 main() {
   # Validate required vars
-  : "${SALARYMAN_ENDPOINT:?set SALARYMAN_ENDPOINT (e.g. http://localhost:11434/v1/chat/completions)}"
-  : "${SALARYMAN_MODEL:?set SALARYMAN_MODEL (e.g. llama3.2)}"
+  : "${SLYM_ENDPOINT:?set SLYM_ENDPOINT (e.g. http://localhost:11434/v1/chat/completions)}"
+  : "${SLYM_MODEL:?set SLYM_MODEL (e.g. llama3.2)}"
   
   # Kill thinking task on exit
   trap 'thinking_stop' EXIT

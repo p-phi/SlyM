@@ -13,11 +13,11 @@ if [[ ! -f "${MODELS_DIR}/model.gguf" ]]; then
   exit 1
 fi
 
-$DOCKER_COMMAND build -t salaryman-e2e -f "$HERE/Dockerfile" "$HERE"
+$DOCKER_COMMAND build -t slym-e2e -f "$HERE/Dockerfile" "$HERE"
 
 $DOCKER_COMMAND run --rm \
   -v "${MODELS_DIR}:/models:ro" \
   -e "RUNS=${RUNS:-10}" \
   -e "MIN_SUCCESS=${MIN_SUCCESS:-4}" \
   "$@" \
-  salaryman-e2e
+  slym-e2e

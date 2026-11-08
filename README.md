@@ -1,117 +1,97 @@
 <div style="text-align: center;">
-<img src="./assets/Salaryman.png" width="200">
-<h1>Salaryman</h1>
-<h3>Shell-Native AI Agent Runtime</h3>
-<div style="text-align: center; margin-bottom: 10px; font-size: 20px;">
-(Self-Writing-Ready)
+<!-- <img src="./assets/Salaryman.png" width="200"> -->
+<h1>SlyM</h1>
+<h3>Unix-native AI agent runtime</h3>
+<div style="text-align: center; margin-bottom: 0px; font-size: 19px;">
+Agents are bundles.
 </div>
-<img src="./assets/intro.gif">
+<div style="text-align: center; margin-bottom: 0px; font-size: 19px;">
+Tools are scripts.
 </div>
+<div style="text-align: center; margin-bottom: 0px; font-size: 19px;">
+Composition is pipes. 
+</div>
+<div style="text-align: center; margin-bottom: 10px; font-size: 19px; font-weight: bold;">
+The runtime is Bash.
+</div>
+<!-- <img src="./assets/intro.gif"> -->
+</div>
+
 
 ---
 
-## Agents Are Bundles
-* `SKILL.md` for persona and intent,
-* `schema/action.json` for structural validation,
-* `tools/action.sh` for deterministic execution.
+## What SlyM is
 
+In SlyM (formerly *Salaryman*), an agent is three things:
+
+- **the user prompt** — what to do;
+- **a bundle** — a directory containing `SKILL.md` (persona and policy),
+  `schemas/` (tool declarations), and `tools/` (scripts);
+- **an LLM** — the reasoner.
+
+SlyM is the small corner where those three meet on your Unix system:
+it takes the prompt, loads the bundle, calls the LLM, runs the tools,
+and writes the trace. The runtime is a few lines of Bash. It has no
+session store, no registry, no sandbox, and no general invocation path
+— because the shell, the file, and the OS already have those, and
+slym's job is to *meet* them, not to *replace* them.
+
+> **SlyM is the corner. The shell is the room.**
 
 ---
 
 ## Getting started
 
-Install salaryman
+Install:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/p-phi/salaryman/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/p-phi/slym/main/install.sh | bash
 ```
 
-Then point it at a model:
+Point it at a model:
 
 ```bash
-export SALARYMAN_ENDPOINT="http://localhost:11434/v1/chat/completions"
-export SALARYMAN_MODEL="llama3.2"
+export SLYM_ENDPOINT="http://localhost:11434/v1/chat/completions"
+export SLYM_MODEL="llama3.2"
 ```
 
-And run an agent (a directory containing one or more bundles):
+Run an agent (a directory containing one or more bundles):
 
 ```bash
-salaryman bundles/shell-run --run "what's in this repository?"
+slym bundles/shell-run --run "what's in this repository?"
 ```
 
+**Dependencies:** `bash`, `curl`, `jq` — plus whatever a tool script
+invokes (`git` for the shell bundle, `python3` for a Python tool).
 
-N.B: Sample bundles can be downloaded from this repo under bundles. 
+Two agents ship with the repo:
 
-
-**Dependencies:** `bash`, `curl`, `jq` — plus whatever a tool script invokes (git for the shell bundle's git commands, python3 for a Python tool).
+- **`bundles/shell-run`** — a restricted shell. One tool, `run`, which
+  accepts a single command from a fixed allowlist (`ls`, `cat`, `head`,
+  `tail`, `wc`, `grep`, `git status`, `git diff`, `git log`).
+- **`bundles/make-bundle`** — builds bundles from a prompt. Its skill is
+  `make-bundle`, and it's the design applied to itself: an agent whose
+  skill is producing agents.
 
 ---
 
-## Two agents included
+## Bundles
 
-This project ships two agents. Both are bundles — there is no other kind of thing.
-
-`bundles/shell-run` — runs a restricted shell. One tool, run, which accepts a single command from a fixed allowlist: `ls`, `cat`, `head`, `tail`, `wc`, `grep`, `git status`, `git diff`, `git log`. 
-
-```bash
-salaryman bundles/shell-run --run "what changed in the last commit?"
-```
-
-`bundles/make-bundle` — builds skill bundles from a prompt. Its skill is `make-bundle`: it reads the format, reads the templates, and writes a new bundle using four narrow file tools (`read_file`, `write_file`, `make_dir`, `make_executable`). The format and templates live in its `SKILL.md`, so they are readable and editable.
-
-```bash
-salaryman bundles/make-bundle --run "create a bundle that reads files and lists directories"
-```
-
-The bundler is the design applied to itself: an agent whose skill is producing agents. It is also the reason the bundle format is documented in prose — the documentation is the bundler's prompt.
-
----
-
-## Architecture
-
-A harness, a skills directory, and a loop:
+A bundle is a directory. That's the whole format. Its contents are:
 
 ```
-harness (250 lines of bash)
-  ├─ loads skills/*/SKILL.md    → system prompt
-  ├─ loads skills/*/schemas/    → tool registry
-  └─ loop: model → tool call → script → result → model
-```
-
-Four decisions follow from that shape:
-
-- No general invocation path. The registry is the authority. There is no shell, no eval, no arbitrary command. The model can only ask for declared tools.
-- A skill is a fixed prompt. Tools are optional. A skill bundle with only SKILL.md is a conversational agent.
-- The harness trusts the skill. No validation, no sandboxing. A tool that can't handle a bad argument needs a better script.
-- Bundles are provider-neutral. Provider translation is a branch in the client, not a change to any bundle.
-
-**Composition as UNIX pipes**
-
-You can also pipe into stdin:
-
-```bash
-salaryman bundles/shell-run --run "List the files inside directory/ ?" \
-| salaryman bundles/shell-run --run "what is inside those files?"
-```
-
-**Composition as a salaryman.** 
-
-A bundle whose tool runs another salaryman composes them; a new feature is a bundle, and a composition of features is a bundle that calls bundles. The unit of composition is the same as the unit of execution.
-
----
-
-## A Skill Bundle
-
-```
-skills/shell-run/       # the bundle
-  SKILL.md          # prose: when and how
+skills/shell-run/
+  SKILL.md              # persona and policy (prose)
   schemas/
-    run.json
+    run.json            # tool declaration (JSON Schema)
   tools/
-    run.sh
+    run.sh              # the executable the tool runs
 ```
 
-`SKILL.md` is prose — when to use the tool, how to interpret the result, what not to do:
+**`SKILL.md`** is prose. It is concatenated into the system prompt
+verbatim. The harness never parses it — it is the model's instructions,
+the bundle author's documentation, and the bundler's prompt, all in one
+text.
 
 ```markdown
 ---
@@ -131,9 +111,10 @@ If you need a command that is not on the list, say so. Do not try to
 work around the allowlist.
 ```
 
-The harness never parses `SKILL.md`; it concatenates it into the system prompt.
-
-`schemas/run.json` declares a tool completely:
+**`schemas/*.json`** declare tools. Each file is one tool: its name, its
+description, its parameters, and the script that runs it. The harness
+uses `script` to dispatch; the model uses `name`, `description`, and
+`parameters` to decide when to call it. One file, three jobs.
 
 ```json
 {
@@ -153,9 +134,9 @@ The harness never parses `SKILL.md`; it concatenates it into the system prompt.
 }
 ```
 
-The harness reads script to know what to run. The model reads name, description, and parameters to know when and how to call it. One file, three jobs.
-
-tools/run.sh receives its arguments as JSON on stdin, checks the command against the allowlist, and runs it:
+**`tools/*.sh`** are the executables the model calls. They read their
+arguments as JSON on stdin and write their result to stdout. They can be
+written in any language; a shebang is the only requirement.
 
 ```bash
 #!/usr/bin/env bash
@@ -166,49 +147,94 @@ ALLOWLIST=(
   "git status" "git diff" "git log"
 )
 
-fail() {
-  echo "error: $1" >&2
-  echo "allowed: ls, cat, head, tail, wc, grep, git status, git diff, git log" >&2
-  exit 1
-}
+command=$(jq -r '.command' <<<"$(cat)")
 
-...
+for allowed in "${ALLOWLIST[@]}"; do
+  if [[ "$command" == "$allowed"* ]]; then
+    exec $command
+  fi
+done
+
+echo "error: '$command' is not in the allowlist." >&2
+echo "allowed: ${ALLOWLIST[*]}" >&2
+exit 1
 ```
 
-The schema is shaped like a general shell. The script is not. The narrowness is in the script, and the script is readable.
+**A bundle can be as small as one file.** A bundle with only `SKILL.md`
+is a conversational agent: it reasons and responds, but has no action
+surface. `schemas/` and `tools/` are optional.
 
+**A bundle can be a composition.** A directory containing multiple
+bundles is a bundle of bundles. `slym skills/` loads every bundle under
+`skills/`, and the model can call every tool they declare. This is how
+you compose capabilities without writing a framework.
 
-A skill is defined by its `SKILL.md`; `schemas/` and `tools/` are optional. A skill bundle with only `SKILL.md` is a conversational agent — it reasons and responds, but has no action surface.
+**Bundles are portable.** A bundle is a directory, so you can copy it,
+`git` it, `tar` it, or `scp` it to another machine. It has no runtime
+dependencies beyond what its scripts invoke. The format is the bundle;
+the bundle is the directory.
 
 ---
 
-## What a tool writes on failure
+## Workflows
 
-The harness only cares about the channel: arguments in on stdin, result on stdout, non-zero exit on failure. It does not parse your errors. But the model is the reader — an error it can't parse is an error it can't recover from.
+**Compose agents with pipes.** The pipe carries the trace, so the next
+agent resumes the conversation:
 
-So write failure output for the model: say what failed, and what the caller could do differently. The shell bundle's `fail()` does exactly that:
-
+```bash
+cat legacy_setup.sh \
+  | slym skills/analyzer --run "extract system package dependencies" \
+  | slym skills/generator --run "write a safe, idempotent apt-get script" \
+  > install.sh
 ```
-error: 'rm' is not in the allowlist.
-allowed: ls, cat, head, tail, wc, grep, git status, git diff, git log
+
+**Save and resume a session.** The trace is the state:
+
+```bash
+slym skills/shell-run --trace --run "audit this repo" > session.jsonl
+slym skills/shell-run --trace --run "now fix the issues" < session.jsonl
 ```
 
-The model reads it, picks an allowed command, and continues.
+**Inspect the trace.** `--trace` emits wrapped JSONL on stdout:
 
----
+```bash
+slym --trace skills/shell-run --run "list files" \
+  | jq -c '.["trace"] | select(.role=="tool") | .content'
+```
 
-## The model
+**Fork a session.** The trace is a file; copying is branching:
 
-Bundles are provider-neutral: the schema is common-subset JSON Schema (type, properties, required, description). The client wraps it in the provider's envelope and normalizes the response to {name, arguments}. Adding a provider is a branch in the client, not a change to any bundle.
+```bash
+cp session.jsonl branch-a.jsonl
+slym skills/shell-run --run "try approach A" < branch-a.jsonl
+```
 
-`SALARYMAN_API_KEY` is optional; set it for a hosted provider that requires a bearer token.
+**Truncate the window.** The context policy is a pipeline stage:
+
+```bash
+tail -n 40 session.jsonl | slym skills/shell-run --run "continue"
+```
+
+**Give the agent a sandbox.** One `ssh` wrapper, no runtime feature:
+
+```bash
+# skills/sandbox/tools/sandbox_exec.sh
+#!/usr/bin/env bash
+set -euo pipefail
+command=$(jq -r '.command' <<<"$(cat)")
+exec ssh sandbox-host -- "$command"
+```
 
 ---
 
 ## Status
 
-Early. The loop, the loader, the self-describing schema, and the Ollama client are the interesting parts. If you build a bundle, add a provider, or port the harness, the design is the contribution and the code is the proof.
+Early. The loop, the loader, the self-describing schema, and the trace
+are the interesting parts. If you build a bundle, add a provider, or
+port the harness, the design is the contribution and the code is the
+proof.
 
-License
+## License
 
 MIT.
+

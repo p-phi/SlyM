@@ -1,0 +1,15 @@
+{
+    "name": "get_profile",
+    "description": "Get a Bluesky profile: display name, bio, follower and following counts.",
+    "script": "tools/get_profile.sh",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "handle": {
+                "type": "string",
+                "description": "Bluesky handle, e.g. alice.bsky.social."
+            }
+        },
+        "required": ["handle"]
+    }
+}

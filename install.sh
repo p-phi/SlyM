@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Salaryman installer.
+# SlyM installer.
 # Usage: install.sh [--unattended]
 set -euo pipefail
 
-SALARYMAN_URL="${SALARYMAN_URL:-https://raw.githubusercontent.com/p-phi/salaryman/main/salaryman.sh}"
-SALARYMAN_BIN="${SALARYMAN_BIN:-$HOME/.local/bin}"
+SLYM_URL="${SLYM_URL:-https://raw.githubusercontent.com/p-phi/SlyM/main/slym.sh}"
+SLYM_BIN="${SLYM_BIN:-$HOME/.local/bin}"
 
 UNATTENDED=false
 for arg in "$@"; do
@@ -88,28 +88,28 @@ fi
 tmp=$(mktemp)
 trap 'rm -f "$tmp"' EXIT
 
-say "downloading $SALARYMAN_URL"
-curl -fsSL "$SALARYMAN_URL" -o "$tmp" || fail "download failed."
+say "downloading $SLYM_URL"
+curl -fsSL "$SLYM_URL" -o "$tmp" || fail "download failed."
 
 head -n1 "$tmp" | grep -q '^#!' || fail "downloaded file does not look like a script."
-grep -q 'SALARYMAN_ENDPOINT' "$tmp" || fail "downloaded file does not look like salaryman."
+grep -q 'SLYM_ENDPOINT' "$tmp" || fail "downloaded file does not look like slym."
 
 # ---------------------------------------------------------------- install
 
-mkdir -p "$SALARYMAN_BIN"
+mkdir -p "$SLYM_BIN"
 chmod +x "$tmp"
-mv "$tmp" "$SALARYMAN_BIN/salaryman"
+mv "$tmp" "$SLYM_BIN/slym"
 trap - EXIT
 
-say "installed $SALARYMAN_BIN/salaryman"
+say "installed $SLYM_BIN/slym"
 
 # ---------------------------------------------------------------- PATH
 
 case ":$PATH:" in
-  *":$SALARYMAN_BIN:"*) ;;
+  *":$SLYM_BIN:"*) ;;
   *)
     say ""
-    say "$SALARYMAN_BIN is not on your PATH. Add this to your shell config:"
-    say "  export PATH=\"$SALARYMAN_BIN:\$PATH\""
+    say "$SLYM_BIN is not on your PATH. Add this to your shell config:"
+    say "  export PATH=\"$SLYM_BIN:\$PATH\""
     ;;
 esac

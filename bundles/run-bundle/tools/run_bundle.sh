@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run a salaryman bundle on a task. Arguments are JSON on stdin.
+# Run a slym bundle on a task. Arguments are JSON on stdin.
 set -euo pipefail
 
 input=$(cat)
@@ -19,4 +19,4 @@ if [[ ! -d "$path" ]]; then
   exit 1
 fi
 
-exec salaryman "$path" --run "$task"
+exec slym "$path" --run "$task"

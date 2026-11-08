@@ -17,9 +17,9 @@ RUN git clone --depth 1 --branch "${LLAMA_CPP_TAG}" \
  && cp /opt/llama.cpp/build/bin/llama-cli    /usr/local/bin/ \
  && rm -rf /opt/llama.cpp
 
-# salaryman, via the project's own installer.
-ARG SALARYMAN_INSTALL_URL=https://raw.githubusercontent.com/p-phi/salaryman/main/install.sh
-RUN curl -fsSL "${SALARYMAN_INSTALL_URL}" | bash -s -- --unattended
+# slym, via the project's own installer.
+ARG SLYM_INSTALL_URL=https://raw.githubusercontent.com/p-phi/SlyM/main/install.sh
+RUN curl -fsSL "${SLYM_INSTALL_URL}" | bash -s -- --unattended
 ENV PATH="/root/.local/bin:${PATH}"
 
 # shunit2, vendored.
@@ -33,7 +33,7 @@ COPY inside/ /opt/e2e/inside/
 COPY agents/  /agents/
 
 # The GGUF is mounted at /models at run time.
-ENV SALARYMAN_MODEL_PATH=/models/model.gguf
+ENV SLYM_MODEL_PATH=/models/model.gguf
 ENV SHUNIT2=/opt/shunit2
 
 WORKDIR /work
