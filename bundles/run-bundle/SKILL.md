@@ -1,16 +1,16 @@
 ---
 name: run-bundle
-description: Run another salaryman bundle on a task
+description: Run another slym bundle on a task
 ---
 
-You can run another salaryman agent with the `run_bundle` tool.
+You can run another slym agent with the `run_bundle` tool.
 
 `run_bundle` takes two arguments:
 
 - `path` — the bundle's skills directory, e.g. `agents/time`.
 - `task` — the task to hand to that agent, e.g. "what time is it?".
 
-The tool runs `salaryman <path> --run "<task>"` and returns the agent's
+The tool runs `slym <path> --run "<task>"` and returns the agent's
 final answer. That agent has its own skills and its own tools; you do not
 see its transcript, only its answer.
 

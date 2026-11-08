@@ -1,0 +1,10 @@
+{
+  "name": "get_current_time",
+  "description": "Retrieve and return the user's current local time in a human-readable format (HH:MM:SS).",
+  "script": "tools/get_current_time.sh",
+  "parameters": {
+    "type": "object",
+    "properties": {},
+    "required": []
+  }
+}
