@@ -431,11 +431,11 @@ main() {
   local system messages
   # ---------------------------------------------------------------- messages init
   # Two starting states, chosen by whether stdin supplied a transcript:
-  #   * resume   → continue the transcript, append --run as the next user turn.
-  #               The trace's system message (index 0) is kept as-is: the trace
-  #               is the state, including the persona it was running under.
-  #   * fresh    → build system prompt from the bundle's SKILL.md and pair it
-  #               with --run as the first user turn.
+  #   * resume → the transcript is pure history (no system message); we
+  #              *re-apply the current bundle's system prompt*. 
+  #              Resuming under a different bundle re-skins the
+  #              conversation under that bundle's policy.
+  #   * fresh  → build system prompt from the bundle's SKILL.md, pair with --run.
   system=$(build_system_prompt)
   if [[ -n "$TRACE_MESSAGES" ]]; then
     # trace is pure history (no system); prepend the bundle's system prompt
