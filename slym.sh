@@ -158,11 +158,29 @@ case "$PROVIDER" in
 esac
 
 # ---------------------------------------------------------------- registry
+# Path resolution helper
+resolve_script() {
+  local bundle_root="$1" raw="$2"
+  # reject absolute and parent-traversal
+  if [[ "$raw" == /* || "$raw" == *..* ]]; then
+    echo "error: unsafe script path: $raw" >&2; return 1
+  fi
+  local resolved
+  resolved="$(cd "$bundle_root" && pwd)/$raw"
+  # ensure it's still under the bundle root after resolution (symlinks)
+  local canon
+  canon=$(realpath -m "$resolved" 2>/dev/null) || { echo "error: cannot resolve $raw" >&2; return 1; }
+  if [[ "$canon" != "$(realpath -m "$bundle_root")"/* ]]; then
+    echo "error: script escapes bundle: $raw" >&2; return 1
+  fi
+  printf '%s' "$canon"
+}
 
 declare -A SCRIPT=() DECLS=()
+
 # Loads all skills into SCRIPT map
 load_registry() {
-  local f name skillpath="$SKILLS_DIR/*/schemas/*.json"
+  local f name raw bundle_root resolved skillpath="$SKILLS_DIR/*/schemas/*.json"
   if [[ -f "$SKILLS_DIR/SKILL.md" ]]; then
     skillpath="$SKILLS_DIR/schemas/*.json"
   fi
@@ -177,12 +195,24 @@ load_registry() {
       echo "warning: duplicate tool '$name' in $f (ignored)" >&2
       continue
     fi
-    SCRIPT["$name"]="$(cd "$(dirname "$f")/.." && pwd)/$(jq -r '.script' "$f")"
+
+    # bundle root = parent of the schemas/ dir that contains this file
+    bundle_root="$(cd "$(dirname "$f")/.." && pwd)"
+    raw=$(jq -r '.script // empty' "$f")
+    if [[ -z "$raw" ]]; then
+      echo "warning: schema without script: $f" >&2
+      continue
+    fi
+    if ! resolved=$(resolve_script "$bundle_root" "$raw"); then
+      echo "warning: skipping tool '$name' (unsafe script path: $raw)" >&2
+      continue
+    fi
+
+    SCRIPT["$name"]="$resolved"
     DECLS["$name"]="$f"
   done
   shopt -u nullglob
 }
-
 # ---------------------------------------------------------------- prompt
 
 build_system_prompt() {
