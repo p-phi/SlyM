@@ -133,7 +133,7 @@ if [[ ! -t 0 ]]; then
   mapfile -t lines <<<"$input"
   wrapped=(); rest=()
   for line in "${lines[@]}"; do
-    if [[ "$line" == '{"app":"slym"'* ]]; then
+    if is_slym_trace "$line"; then
       wrapped+=("$line")
     else
       rest+=("$line")
