@@ -318,18 +318,22 @@ run_tool() {
     return 1
   fi
 
-  local out err rc
+  local errfile out err rc
+  errfile=$(mktemp "${TMPDIR:-/tmp}/slym.XXXXXX") || {
+    printf 'error: mktemp failed' >&2
+    return 1
+  }
+
   set +e
-  out=$(printf '%s' "$args" | "$script" 2>/tmp/slym.err)
+  out=$(printf '%s' "$args" | "$script" 2>"$errfile")
   rc=$?
-  err=$(cat /tmp/slym.err 2>/dev/null)
   set -e
 
-  if [[ $rc -ne 0 ]]; then
-    printf 'error (exit %d): %s%s' "$rc" "$out" "$err"
-  else
-    printf '%s' "$out"
-  fi
+  err=$(cat "$errfile" 2>/dev/null || true)
+  rm -f "$errfile"
+
+  jq -nc --arg out "$out" --arg err "$err" --argjson rc "$rc" \
+    '{ok:($rc==0), exit:$rc, stdout:$out, stderr:$err}'
 }
 # User feedback loop
 thinking_start() {
