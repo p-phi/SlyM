@@ -1,12 +1,8 @@
 {
-  "name": "make_dir",
-  "description": "Create a directory at the given path under the skills directory.",
-  "script": "tools/make_dir.sh",
-  "parameters": {
-    "type": "object",
-    "properties": {
-      "path": { "type": "string", "description": "Path relative to the skills directory." }
-    },
-    "required": ["path"]
-  }
+    "name": "make_dir",
+    "description": "Create a directory at the given path under the skills directory.",
+    "script": "tools/make_dir.sh",
+    "parameters": {
+        "path": "Path relative to the skills directory."
+    }
 }
