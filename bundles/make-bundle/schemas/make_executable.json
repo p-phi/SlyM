@@ -1,12 +1,8 @@
 {
-  "name": "make_executable",
-  "description": "Set the executable bit on a file under the skills directory.",
-  "script": "tools/make_executable.sh",
-  "parameters": {
-    "type": "object",
-    "properties": {
-      "path": { "type": "string", "description": "Path relative to the skills directory." }
-    },
-    "required": ["path"]
-  }
+    "name": "make_executable",
+    "description": "Set the executable bit on a file under the skills directory.",
+    "script": "tools/make_executable.sh",
+    "parameters": {
+        "path": "Path relative to the skills directory."
+    }
 }
