@@ -159,8 +159,7 @@ esac
 
 # ---------------------------------------------------------------- registry
 
-declare -A SCRIPT=()
-DECLS=()
+declare -A SCRIPT=() DECLS=()
 # Loads all skills into SCRIPT map
 load_registry() {
   local f name skillpath="$SKILLS_DIR/*/schemas/*.json"
@@ -179,7 +178,7 @@ load_registry() {
       continue
     fi
     SCRIPT["$name"]="$(cd "$(dirname "$f")/.." && pwd)/$(jq -r '.script' "$f")"
-    DECLS+=("$(jq -c '{type: "function", function: {name, description, parameters}}' "$f")")
+    DECLS["$name"]="$f"
   done
   shopt -u nullglob
 }
@@ -201,13 +200,42 @@ build_system_prompt() {
 }
 
 # ---------------------------------------------------------------- model client
+# build_tools_json() translates bundle schemas into provider-friendly API schemas, setting type: string as parameter type.
+# Example of bundle schema:
+# {
+    # "name": "get_posts",
+    # "description": "Get the last N posts of a Bluesky profile, newest first.",
+    # "script": "tools/get_posts.sh",
+    # "parameters": {
+    #     "handle": "Bluesky handle, e.g. alice.bsky.social.",
+    #     "limit?": "Number of posts to fetch, 1 to 50. Defaults to 10."
+    # }
+# }
+# N.B: the character '?' at the end of 'limit?' signals an optional parameter.
 
 build_tools_json() {
-  if [[ ${#DECLS[@]} -eq 0 ]]; then
-    printf '[]'
-  else
-    printf '%s\n' "${DECLS[@]}" | jq -s -c '.'
-  fi
+  if [[ ${#DECLS[@]} -eq 0 ]]; then printf '[]'; return; fi
+  local name f
+  for name in "${!DECLS[@]}"; do
+    f="${DECLS[$name]}"
+    jq -c '
+      { type: "function",
+        function: {
+          name: .name,
+          description: .description,
+          parameters: (
+            .parameters
+            | to_entries
+            | { type: "object",
+                properties: (
+                  map({ key: (.key | rtrimstr("?")),
+                        value: { type: "string", description: .value } })
+                  | from_entries ),
+                required: ( map(select(.key | endswith("?") | not) | .key) ) }
+          )
+        }
+      }' "$f"
+  done | jq -s -c '.'
 }
 
 call_model() {
