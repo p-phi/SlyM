@@ -3,17 +3,7 @@
     "description": "Run a slym agent bundle on a task. Returns the agent's final answer.",
     "script": "tools/run_bundle.sh",
     "parameters": {
-        "type": "object",
-        "properties": {
-            "path": {
-                "type": "string",
-                "description": "Path to the bundle's skills directory, e.g. agents/time."
-            },
-            "task": {
-                "type": "string",
-                "description": "The task to hand to the agent, e.g. 'what time is it?'."
-            }
-        },
-        "required": ["path", "task"]
+        "path": "Path to the bundle's skills directory, e.g. agents/time.",
+        "task": "The task to hand to the agent, e.g. 'what time is it?'."
     }
 }

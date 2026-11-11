@@ -3,17 +3,7 @@
     "description": "Get the last N posts of a Bluesky profile, newest first.",
     "script": "tools/get_posts.sh",
     "parameters": {
-        "type": "object",
-        "properties": {
-            "handle": {
-                "type": "string",
-                "description": "Bluesky handle, e.g. alice.bsky.social."
-            },
-            "limit": {
-                "type": "number",
-                "description": "Number of posts to fetch, 1 to 50. Defaults to 10."
-            }
-        },
-        "required": ["handle"]
+        "handle": "Bluesky handle, e.g. alice.bsky.social.",
+        "limit?": "Number of posts to fetch, 1 to 50. Defaults to 10."
     }
 }
