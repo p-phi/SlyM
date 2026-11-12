@@ -16,6 +16,7 @@
 #   SLYM_PROVIDER   optional; openai-compatible (default) | responses
 #   SLYM_MAX_ITERATIONS  optional; loop cap, default 16
 #   SLYM_THINK_BUFFER  optional; loop exit condition buffer
+#   SLYM_REQUEST_INTERVAL  optional; enforce time gap (in seconds) between two model calls
 #
 # Source: https://github.com/p-phi/slym
 # License: MIT — see the LICENSE file in the source repo.
@@ -31,6 +32,7 @@ USAGE_ERROR=1
 MAX_ITERATIONS="${SLYM_MAX_ITERATIONS:-16}"
 # Allows the model to return pure text responses without tools for up to THINK_BUFFER rounds
 THINK_BUFFER="${SLYM_THINK_BUFFER:-1}"
+REQUEST_INTERVAL="${SLYM_REQUEST_INTERVAL:-0}"
 # Provider shape (default: OpenAI-compatible)
 PROVIDER="${SLYM_PROVIDER:-openai-compatible}"
 SPIN_PID=""
@@ -396,12 +398,13 @@ run_tool() {
     '{ok:($rc==0), exit:$rc, stdout:$out, stderr:$err}'
 }
 # User feedback loop
-thinking_start() {
+spinner_start() {
+  local display="${1:-waiting}"
   [[ -t 2 ]] || return 0
   (
     local t=0
     while :; do
-      printf '\rthinking… %ds' "$t" >&2
+      printf '\r%s… %ds' "$display" "$t" >&2
       sleep 1
       t=$((t+1))
     done
@@ -409,12 +412,25 @@ thinking_start() {
   SPIN_PID=$!
 }
 # Stop the 'thinking' task if running
-thinking_stop() {
+spinner_stop() {
   [[ -n "${SPIN_PID:-}" ]] || return 0
   kill "${SPIN_PID:-}" 2>/dev/null || true
   wait "${SPIN_PID:-}" 2>/dev/null || true
   SPIN_PID=""
   printf '\r\033[K' >&2
+}
+
+# Throttle request to avoid provider rate limits
+throttle_request() {
+  [[ "$REQUEST_INTERVAL" == "0" ]] && return 0
+  local now elapsed wait
+  now=$(date +%s)
+  elapsed=$(( now - LAST_REQUEST_AT ))
+  wait=$(( REQUEST_INTERVAL - elapsed ))
+  if (( wait > 0 )); then
+    sleep "$wait"
+  fi
+  LAST_REQUEST_AT=$(date +%s)
 }
 
 # ---------------------------------------------------------------- loop
@@ -423,14 +439,15 @@ main() {
   # Validate required vars
   : "${SLYM_ENDPOINT:?set SLYM_ENDPOINT (e.g. http://localhost:11434/v1/chat/completions)}"
   : "${SLYM_MODEL:?set SLYM_MODEL (e.g. llama3.2)}"
-  
   # Kill thinking task on exit
-  trap 'thinking_stop' EXIT
+  trap 'spinner_stop' EXIT
   
+  LAST_REQUEST_AT=0
+
   # Load tools
   load_registry
   # Initialize task messages
-  local system messages prompt prepended_trace
+  local system messages prompt 
   # ---------------------------------------------------------------- messages init
   # Two starting states, chosen by whether stdin supplied a transcript:
   #   * resume → the transcript is pure history (no system message); we
@@ -457,10 +474,16 @@ main() {
   local buffer=0
   local answer=()
   for ((i = 0; i < MAX_ITERATIONS; i++)); do 
-    thinking_start
+    spinner_start "throttling"
+    throttle_request
+    spinner_stop
+    spinner_start "thinking"
     # Call model to get response
     resp=$(call_model "$messages")
-    thinking_stop
+    spinner_stop
+    # record last request after the request completes
+    LAST_REQUEST_AT=$(date +%s)   
+
     # Normalize the response
     normalized=$(normalize_response "$resp")
     content=$(jq -r '.content' <<<"$normalized")
