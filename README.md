@@ -13,7 +13,7 @@ Composition is pipes.
 <div style="text-align: center; margin-bottom: 10px; font-size: 19px; font-weight: bold;">
 The runtime is Bash.
 </div>
-<!-- <img src="./assets/intro.gif"> -->
+<img src="./assets/intro.gif">
 </div>
 
 
