@@ -17,6 +17,7 @@
 #   SLYM_MAX_ITERATIONS  optional; loop cap, default 16
 #   SLYM_THINK_BUFFER  optional; loop exit condition buffer
 #   SLYM_REQUEST_INTERVAL  optional; enforce time gap (in seconds) between two model calls
+#   SLYM_NO_SPINNER  optional; remove spinner animation between requests
 #
 # Source: https://github.com/p-phi/slym
 # License: MIT — see the LICENSE file in the source repo.
@@ -33,6 +34,7 @@ MAX_ITERATIONS="${SLYM_MAX_ITERATIONS:-16}"
 # Allows the model to return pure text responses without tools for up to THINK_BUFFER rounds
 THINK_BUFFER="${SLYM_THINK_BUFFER:-1}"
 REQUEST_INTERVAL="${SLYM_REQUEST_INTERVAL:-0}"
+NO_SPINNER="${SLYM_NO_SPINNER:-0}"
 # Provider shape (default: OpenAI-compatible)
 PROVIDER="${SLYM_PROVIDER:-openai-compatible}"
 SPIN_PID=""
@@ -401,6 +403,7 @@ run_tool() {
 spinner_start() {
   local display="${1:-waiting}"
   [[ -t 2 ]] || return 0
+  [[ -n "${NO_SPINNER}" ]] && return 0
   (
     local t=0
     while :; do
