@@ -117,8 +117,9 @@ done
 
 wrap_message()   { jq -c --arg app "slym" '{app:$app, trace:.}'; }
 unwrap_message() { jq -c 'if has("app") and .app=="slym" then .trace else . end'; }
-is_slym_trace()  { jq -e 'type=="object" and .app=="slym" and has("trace")' \
-                     >/dev/null 2>&1 <<<"$(head -n1)"; }
+is_slym_trace() {
+  jq -e 'type=="object" and .app=="slym" and has("trace")' >/dev/null 2>&1 <<<"$1"
+}
 # PIPE SUPPORT
 # ---------------------------------------------------------------- stdin detection
 # Two input kinds arrive on stdin, and they mean different things:
@@ -134,6 +135,7 @@ if [[ ! -t 0 ]]; then
   wrapped=(); rest=()
   for line in "${lines[@]}"; do
     if is_slym_trace "$line"; then
+      [[ $TRACE -eq 1 ]] && echo "$line"
       wrapped+=("$line")
     else
       rest+=("$line")
@@ -428,7 +430,7 @@ main() {
   # Load tools
   load_registry
   # Initialize task messages
-  local system messages
+  local system messages prompt prepended_trace
   # ---------------------------------------------------------------- messages init
   # Two starting states, chosen by whether stdin supplied a transcript:
   #   * resume → the transcript is pure history (no system message); we
@@ -437,17 +439,19 @@ main() {
   #              conversation under that bundle's policy.
   #   * fresh  → build system prompt from the bundle's SKILL.md, pair with --run.
   system=$(build_system_prompt)
+  prompt="$(jq -nc --arg t "$TASK" '{role: "user", content: $t}')"
+  # trace: pipe it to wrap_message
+  [[ $TRACE -eq 1 ]] && wrap_message <<<"$prompt"
+  
+  # messages: inject it as a JSON value via --argjson, not string concat
   if [[ -n "$TRACE_MESSAGES" ]]; then
-    # trace is pure history (no system); prepend the bundle's system prompt
-    messages=$(jq -c \
-      --arg s "$system" \
-      --arg t "$TASK" \
-      '[{role:"system", content:$s}] + . + [{role:"user", content:$t}]' \
-      <<<"$TRACE_MESSAGES")
+    messages=$(jq -c --arg s "$system" --argjson p "$prompt" \
+      '[{role:"system",content:$s}] + . + [$p]' <<<"$TRACE_MESSAGES")
   else
-    messages=$(jq -n -c --arg s "$system" --arg t "$TASK" \
-      '[{role:"system", content:$s}, {role:"user", content:$t}]')
-  fi 
+    messages=$(jq -nc --arg s "$system" --argjson p "$prompt" \
+      '[{role:"system",content:$s}, $p]')
+  fi
+
   # Main conversation loop
   local i resp normalized content calls
   local buffer=0
