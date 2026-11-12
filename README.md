@@ -1,6 +1,5 @@
 <div style="text-align: center;">
-<!-- <img src="./assets/Salaryman.png" width="200"> -->
-<h1>SlyM</h1>
+<img src="./assets/logo-slym.png" width="300">
 <h3>Unix-native AI agent runtime</h3>
 <div style="text-align: center; margin-bottom: 0px; font-size: 19px;">
 Agents are bundles.
@@ -22,7 +21,7 @@ The runtime is Bash.
 
 ## What SlyM is
 
-In SlyM (formerly *Salaryman*), an agent is three things:
+In SlyM, an agent is three things:
 
 - **the user prompt** — what to do;
 - **a bundle** — a directory containing `SKILL.md` (persona and policy),
@@ -111,10 +110,15 @@ If you need a command that is not on the list, say so. Do not try to
 work around the allowlist.
 ```
 
-**`schemas/*.json`** declare tools. Each file is one tool: its name, its
-description, its parameters, and the script that runs it. The harness
-uses `script` to dispatch; the model uses `name`, `description`, and
-`parameters` to decide when to call it. One file, three jobs.
+`schemas/*.json` declare tools. Each file is one tool: its name,
+its description, its parameters, and the script that runs it.
+`parameters` is a flat map of name → description. 
+
+Append `?` to aparameter name to mark it optional. 
+
+The harness expands every parameter
+to the provider's `string` type and derives `required` from the `?`
+suffix. The bundle never declares types.
 
 ```json
 {
@@ -122,21 +126,43 @@ uses `script` to dispatch; the model uses `name`, `description`, and
   "description": "Run a single read-only command from the allowlist. No pipes, redirects, subshells, or command substitution.",
   "script": "tools/run.sh",
   "parameters": {
-    "type": "object",
-    "properties": {
-      "command": {
-        "type": "string",
-        "description": "A single command from the allowlist, e.g. 'ls -la', 'cat README.md', 'git status'."
-      }
-    },
-    "required": ["command"]
+    "command": "A single command from the allowlist, e.g. 'ls -la', 'cat README.md', 'git status'."
   }
 }
 ```
 
-**`tools/*.sh`** are the executables the model calls. They read their
+The same file, with an optional parameter:
+
+```json
+{
+  "name": "grep",
+  "description": "Search files for a pattern.",
+  "script": "tools/grep.sh",
+  "parameters": {
+    "pattern": "The regex to search for.",
+    "path?":   "Optional: file or directory to search (default: current dir)."
+  }
+}
+```
+There is no `enum`, no `format`, no nested
+`properties`: the bundle surface is **description + optionality**, and
+everything else is the tool's job.
+
+`tools/*.sh` are the executables the model calls. They read their
 arguments as JSON on stdin and write their result to stdout. They can be
-written in any language; a shebang is the only requirement.
+written in any language; a shebang is the only requirement. The harness
+runs each tool and records three channels in the trace:
+
+```json
+{"ok": false, "exit": 1, "stdout": "", "stderr": "error: 'rm -rf /' is not in the allowlist."}
+```
+
+ok is derived from the exit code; stdout and stderr are kept
+separate so the trace can tell which channel diverged. On success:
+
+```json
+{"ok": true, "exit": 0, "stdout": "README.md\nLICENSE\n", "stderr": ""}
+```
 
 ```bash
 #!/usr/bin/env bash
