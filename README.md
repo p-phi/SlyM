@@ -228,11 +228,13 @@ slym --trace skills/shell-run --run "list files" \
   | jq -c '.["trace"] | select(.role=="tool") | .content'
 ```
 
-**Fork a session.** The trace is a file; copying is branching:
+**Fork a session.** The trace is read-only input; a fork is a re-run with a
+different bundle, not a copy of state. Two agents can branch the same
+conversation without either one owning a copy of it:
 
 ```bash
-cp session.jsonl branch-a.jsonl
-slym skills/shell-run --run "try approach A" < branch-a.jsonl
+slym skills/planner --trace --run "try approach A" < session.jsonl > branch-a.jsonl
+slym skills/critic  --trace --run "critique that plan" < session.jsonl > branch-b.jsonl
 ```
 
 **Truncate the window.** The context policy is a pipeline stage:
