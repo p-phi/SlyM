@@ -229,7 +229,7 @@ slym --trace skills/shell-run --run "list files" \
 ```
 
 **Fork a session.** The trace is read-only input; a fork is a re-run with a
-different bundle, not a copy of state. Two agents can branch the same
+different bundle. Two agents can branch the same
 conversation without either one owning a copy of it:
 
 ```bash
