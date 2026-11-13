@@ -202,6 +202,46 @@ the bundle is the directory.
 
 ---
 
+## Providers
+
+A **provider** adapts SlyM's internal message shape to a model endpoint's wire
+format. It is two functions:
+
+```bash
+call_<provider>()      # internal messages -> wire payload -> POST -> raw response
+normalize_<provider>() # raw response -> internal message
+```
+
+SlyM ships with:
+
+| Provider | Endpoint shape | Reasoner kind |
+|---|---|---|
+| `openai-compatible` | chat-completions (`messages`, `tools`) | generative |
+| `system-one` | decision (`state`, `questions`) | bounded decision |
+
+**A provider may reinterpret the bundle.** The same artifacts—`SKILL.md`,
+`schemas/`, `tools/`—are adapted to the wire format, and *where each artifact
+goes is the provider's decision*:
+
+- `openai-compatible` sends `SKILL.md` as the system message; `schemas/` as
+  the `tools` array; the trace as `messages`.
+- `system-one` sends the conversation turns as `state`; `SKILL.md` as
+  `instructions` (prepended to the decision question); `schemas/` as
+  `criteria` (the options).
+
+**The bundle is the agent; the provider is how
+the agent meets a particular kind of reasoner.** A bundle that runs against
+`openai-compatible` can run against `system-one` unchanged—different endpoint,
+different wire format, same artifacts.
+
+The provider is also where a reasoner's *limits* are absorbed. A System 1
+model cannot produce prose or fill tool arguments—so `normalize_systemone`
+synthesizes a tool call with empty arguments and empty content, and the loop's
+existing "zero tool calls → done" rule handles `__done__`. The harness does not
+grow a branch for "the reasoner can't write"; the provider absorbs it.
+
+---
+
 ## Workflows
 
 **Compose agents with pipes.** The pipe carries the trace, so the next

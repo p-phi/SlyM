@@ -1,0 +1,6 @@
+{
+    "name": "day",
+    "description": "Use this tool whenever the time matches day time.",
+    "script": "tools/day.sh",
+    "parameters": {}
+}

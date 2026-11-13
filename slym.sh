@@ -61,6 +61,7 @@ options:
 
 providers:
   openai-compatible    OpenAI chat-completions shape (Ollama, Groq, Together, ...)
+  system-one           System One shape (Jev, Laya, Kev...)
 
 environment:
   SLYM_ENDPOINT   required; chat-completions URL
@@ -150,7 +151,7 @@ if [[ ! -t 0 ]]; then
     TRACE_MESSAGES=$(printf '%s\n' "${wrapped[@]}" | unwrap_message | jq -s -c '.')
   fi
   if ((${#rest[@]})); then
-    TASK+=$'\n\n'"$(printf '%s\n' "${rest[@]}")"
+    TASK+="${TASK:+$'\n\n'}$(printf '%s\n' "${rest[@]}")"
   fi
 fi
 
@@ -159,7 +160,7 @@ fi
 [[ -d "$SKILLS_DIR" ]] || { echo "error: skills dir not found: $SKILLS_DIR" >&2; exit 1; }
 
 case "$PROVIDER" in
-  openai-compatible|responses) ;;
+  openai-compatible|system-one) ;;
   *) echo "error: unknown provider: $PROVIDER" >&2; usage ;;
 esac
 
@@ -278,6 +279,8 @@ call_model() {
   local messages_json="$1"
   case "$PROVIDER" in
     openai-compatible) call_openai_compatible "$messages_json" ;;
+    system-one) call_systemone "$messages_json" ;;
+    *) echo "error: unknown provider: $PROVIDER" >&2; return 1 ;;
     # responses)         call_responses "$messages_json" ;;
   esac
 }
@@ -306,6 +309,53 @@ call_openai_compatible() {
   post_json "$payload"
 }
 
+# -------------- System One Provider-------------------------
+# 1. Zero-Argument Tools Only: 
+# Because System One models classify into fixed choices rather than generating 
+# free-form JSON arguments, `arguments` will always be `{}`. 
+# This works great for parameterless scripts (e.g., `check_disk.sh`, `run_tests.sh`, 
+# `fetch_queue.sh`) or skill/sub-agent routing, 
+# where the tool reads from stdin/environment rather than LLM-invented parameters.
+
+call_systemone() {
+  local messages_json="$1"
+  local system turns instructions tools_json criteria_json payload
+  
+  # split: system message = skill (context + policy); rest = conversation
+  system=$(jq -r '[.[] | select(.role=="system") | .content] | join("\n\n")' <<<"$messages_json")
+  turns=$(jq -c '[.[] | select(.role!="system")]' <<<"$messages_json")
+
+  instructions="Select the single best tool to execute next based on the conversation state, or __done__ if finished."
+  [[ -n "$system" ]] && instructions="$system"$'\n\n'"$instructions"
+
+  # Build { "tool_name": "description", ..., "__done__": "Task is complete..." }
+  criteria_json=$(
+    if [[ ${#DECLS[@]} -gt 0 ]]; then
+      for name in "${!DECLS[@]}"; do
+        jq -c '{key: .name, value: .description}' "${DECLS[$name]}"
+      done
+    fi | jq -s -c 'from_entries + {"__done__": "No further tool calls needed; task is complete."}'
+  )
+  
+  payload=$(jq -n -c \
+    --arg model "${SLYM_MODEL:-}" \
+    --argjson state "$turns" \
+    --argjson criteria "$criteria_json" \
+    --arg instr "$instructions" \
+    '{
+      state: $state,
+      questions: {
+        next_tool: {
+          type: "choice",
+          instructions: $instr,
+          criteria: $criteria
+        }
+      }
+    } | if $model != "" then . + {model: $model} else . end')
+
+  post_json "$payload"
+}
+
 # call_responses() {
 #   echo "error: provider 'responses' is not implemented yet." >&2
 #   echo "       implement call_responses and normalize_responses." >&2
@@ -323,6 +373,8 @@ normalize_response() {
   local resp="$1"
   case "$PROVIDER" in
     openai-compatible) normalize_openai "$resp" ;;
+    system-one) normalize_systemone "$resp" ;;
+    *) echo "error: unknown provider: $PROVIDER" >&2; return 1 ;;
     # responses)         normalize_responses "$resp" ;;
   esac
 }
@@ -357,6 +409,33 @@ normalize_openai() {
   # Return cleaned JSON
   printf '%s' "$normalized"
 }
+
+normalize_systemone() {
+  local resp="$1"
+  local choice conf call_id
+
+  if jq -e '.error != null or (.answers.next_tool // null) == null' >/dev/null <<<"$resp"; then
+    jq -r '.error.message // .detail // "invalid systemone response"' <<<"$resp" >&2
+    return 1
+  fi
+
+  choice=$(jq -r '.answers.next_tool.choice' <<<"$resp")
+  conf=$(jq -r '.answers.next_tool.confidence // 0' <<<"$resp")
+  call_id="sys1_$(date +%s)_$RANDOM"
+
+  if [[ "$choice" == "__done__" ]]; then
+    jq -n -c --arg c "Done (confidence: $conf)" \
+      '{role: "assistant", content: $c, tool_calls: []}'
+  else
+    jq -n -c --arg id "$call_id" --arg name "$choice" --arg conf "$conf" \
+      '{
+        role: "assistant",
+        content: "",
+        tool_calls: [{id: $id, name: $name, arguments: {}}]
+      }'
+  fi
+}
+
 
 # normalize_responses() {
 #   echo "error: provider 'responses' is not implemented yet." >&2
@@ -403,7 +482,7 @@ run_tool() {
 spinner_start() {
   local display="${1:-waiting}"
   [[ -t 2 ]] || return 0
-  [[ -n "${NO_SPINNER}" ]] && return 0
+  [[ ${NO_SPINNER} -eq 1 ]] && return 0
   (
     local t=0
     while :; do

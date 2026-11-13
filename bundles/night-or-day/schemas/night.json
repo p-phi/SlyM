@@ -1,0 +1,6 @@
+{
+    "name": "night",
+    "description": "Use this tool whenever the time matches night time.",
+    "script": "tools/night.sh",
+    "parameters": {}
+}
