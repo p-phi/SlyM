@@ -209,8 +209,8 @@ agent resumes the conversation:
 
 ```bash
 cat legacy_setup.sh \
-  | slym skills/analyzer --run "extract system package dependencies" \
-  | slym skills/generator --run "write a safe, idempotent apt-get script" \
+  | slym skills/analyzer --trace --run "extract system package dependencies" \
+  | slym skills/generator --trace --run "write a safe, idempotent apt-get script" \
   > install.sh
 ```
 
