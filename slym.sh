@@ -113,7 +113,7 @@ while [[ $# -gt 0 ]]; do
       TRACE=1; shift 1 ;;
     --tag)
       [[ -n "${2:-}" ]] || usage
-      TAGS+=("$2")
+      [[ ! ${TAGS[*]} =~ $2 ]] && TAGS+=("$2")
       TRACE=1          # --tag implies --trace
       shift 2 ;;
     *)
