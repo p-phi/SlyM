@@ -603,7 +603,7 @@ main() {
       # Reconstruct messages with tool response
       messages=$(jq -c --arg id "$call_id" --arg content "$result" \
         '. + [{role: "tool", tool_call_id: $id, content: $content}]' <<<"$messages")
-        jq -nc --arg id "$call_id" --arg content "$result" \
+      jq -nc --arg id "$call_id" --arg content "$result" \
           '{role:"tool", tool_call_id:$id, content:$content}' \
           | wrap_message
     done
