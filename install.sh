@@ -6,7 +6,7 @@ set -euo pipefail
 SLYM_URL="${SLYM_URL:-https://raw.githubusercontent.com/p-phi/SlyM/main/slym.sh}"
 SLYM_BIN="${SLYM_BIN:-$HOME/.local/bin}"
 
-SLYM_SHOW_URL="${SLYM_URL:-https://raw.githubusercontent.com/p-phi/SlyM/main/slym-show.sh}"
+SLYM_SHOW_URL="${SLYM_SHOW_URL:-https://raw.githubusercontent.com/p-phi/SlyM/main/slym-show.sh}"
 
 UNATTENDED=false
 for arg in "$@"; do
