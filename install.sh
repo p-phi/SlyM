@@ -114,7 +114,7 @@ say "downloading $SLYM_SHOW_URL"
 curl -fsSL "$SLYM_SHOW_URL" -o "$tmp" || fail "download failed."
 
 head -n1 "$tmp" | grep -q '^#!' || fail "downloaded file does not look like a script."
-grep -q 'usage: slym-show' "$tmp" || fail "downloaded file does not look like slym."
+grep -q 'usage: slym-show' "$tmp" || fail "downloaded file does not look like slym-show."
 
 # ---------------------------------------------------------------- install
 
