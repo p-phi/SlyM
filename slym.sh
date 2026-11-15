@@ -42,7 +42,6 @@ API_KEY=${SLYM_API_KEY:-}
 # ---------------------------------------------------------------- args
 
 TRACE_MESSAGES=""
-TRACE=0
 SKILLS_DIR=""
 TASK=""
 TAGS=()
@@ -109,12 +108,9 @@ while [[ $# -gt 0 ]]; do
       version ;;
     --show-config)
       show_config ;;
-    -t|--trace)
-      TRACE=1; shift 1 ;;
     --tag)
       [[ -n "${2:-}" ]] || usage
       [[ ! ${TAGS[*]} =~ $2 ]] && TAGS+=("$2")
-      TRACE=1          # --tag implies --trace
       shift 2 ;;
     *)
       if [[ -z "$SKILLS_DIR" ]]; then
@@ -154,7 +150,7 @@ if [[ ! -t 0 ]]; then
   wrapped=(); rest=()
   for line in "${lines[@]}"; do
     if is_slym_trace "$line"; then
-      [[ $TRACE -eq 1 ]] && echo "$line"
+      echo "$line"
       wrapped+=("$line")
     else
       rest+=("$line")
@@ -554,7 +550,7 @@ main() {
   system=$(build_system_prompt)
   prompt="$(jq -nc --arg t "$TASK" '{role: "user", content: $t}')"
   # trace: pipe it to wrap_message
-  [[ $TRACE -eq 1 ]] && wrap_message <<<"$prompt"
+  wrap_message <<<"$prompt"
   
   # messages: inject it as a JSON value via --argjson, not string concat
   if [[ -n "$TRACE_MESSAGES" ]]; then
@@ -566,9 +562,8 @@ main() {
   fi
 
   # Main conversation loop
-  local i resp normalized content calls
+  local i resp normalized calls
   local buffer=0
-  local answer=()
   for ((i = 0; i < MAX_ITERATIONS; i++)); do 
     spinner_start "throttling"
     throttle_request
@@ -582,33 +577,21 @@ main() {
 
     # Normalize the response
     normalized=$(normalize_response "$resp")
-    content=$(jq -r '.content' <<<"$normalized")
     calls=$(jq -c '.tool_calls' <<<"$normalized")
-    if [[ $TRACE -eq 1 ]]; then
-      wrap_message <<<"$normalized"
-    fi
+    wrap_message <<<"$normalized"
     # Add response to messages
     messages=$(jq -c --argjson m "$normalized" '. + [$m]' <<<"$messages")
 
     # Buffer or return based on conditions
     # This allows some models to use tools better
     if [[ "$(jq 'length' <<<"$calls")" -eq 0 ]]; then
-      if [[ $TRACE -eq 0 ]]; then
-        answer+=("$content")
-      fi
       (( buffer +=1 ))
     else
-    # A tool call means the run isn't over — discard any text-only turns
-    # buffered so far, so `answer` only ever holds the final quiet run.
-      answer=()
+    # A tool call means the run isn't over
       buffer=0
     fi
-    if [[ $buffer -gt $THINK_BUFFER ]]; then
-      if [[ $TRACE -eq 0 ]]; then
-        printf '%s\n' "${answer[@]}"
-      fi
-      return 0
-    fi
+    [[ $buffer -gt $THINK_BUFFER ]] && return 0
+    
     # Handle tool calls
     local n j name args call_id result
     n=$(jq 'length' <<<"$calls")
@@ -620,14 +603,11 @@ main() {
       # Reconstruct messages with tool response
       messages=$(jq -c --arg id "$call_id" --arg content "$result" \
         '. + [{role: "tool", tool_call_id: $id, content: $content}]' <<<"$messages")
-      if [[ $TRACE -eq 1 ]]; then
         jq -nc --arg id "$call_id" --arg content "$result" \
           '{role:"tool", tool_call_id:$id, content:$content}' \
           | wrap_message
-      fi
     done
   done
-  # Print final answer if no early exit
   echo "error: max iterations ($MAX_ITERATIONS) reached" >&2
   exit 1
 }
