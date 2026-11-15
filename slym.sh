@@ -45,6 +45,7 @@ TRACE_MESSAGES=""
 TRACE=0
 SKILLS_DIR=""
 TASK=""
+TAGS=()
 # Usage banner and command-line argument parsing
 usage() {
   cat >&2 <<EOF
@@ -54,6 +55,7 @@ usage:
 options:
   --run <task>         run an agent on the given task
   --provider <name>    provider shape (default: openai-compatible)
+  --tag <name>         tag trace lines (implies --trace); repeatable
   --show_config        show the current loaded configuration
   -h, --help           show this help
   -v, --version        show the version
@@ -109,6 +111,11 @@ while [[ $# -gt 0 ]]; do
       show_config ;;
     -t|--trace)
       TRACE=1; shift 1 ;;
+    --tag)
+      [[ -n "${2:-}" ]] || usage
+      [[ ! ${TAGS[*]} =~ $2 ]] && TAGS+=("$2")
+      TRACE=1          # --tag implies --trace
+      shift 2 ;;
     *)
       if [[ -z "$SKILLS_DIR" ]]; then
         SKILLS_DIR="$1"; shift
@@ -120,7 +127,14 @@ done
 
 # ---------------------------------------------------------------- trace functions
 
-wrap_message()   { jq -c --arg app "slym" '{app:$app, trace:.}'; }
+wrap_message() {
+  local tags_json='[]'
+  if ((${#TAGS[@]})); then
+    tags_json=$(printf '%s\n' "${TAGS[@]}" | jq -R . | jq -s -c .)
+  fi
+  jq -c --arg app "slym" --argjson tags "$tags_json" \
+    '{app:$app, tags:$tags, trace:.}'
+}
 unwrap_message() { jq -c 'if has("app") and .app=="slym" then .trace else . end'; }
 is_slym_trace() {
   jq -e 'type=="object" and .app=="slym" and has("trace")' >/dev/null 2>&1 <<<"$1"
