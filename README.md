@@ -57,11 +57,13 @@ export SLYM_MODEL="llama3.2"
 Run an agent (a directory containing one or more bundles):
 
 ```bash
-slym bundles/shell-run --run "what's in this repository?"
+slym bundles/shell-run --run "what's in this repository?" | slym-show
 ```
 
 **Dependencies:** `bash`, `curl`, `jq` — plus whatever a tool script
 invokes (`git` for the shell bundle, `python3` for a Python tool).
+`slym-show` optionally uses `gum` for styling; without it, the view
+is plain but identical in layout.
 
 Two agents ship with the repo:
 
@@ -239,6 +241,57 @@ model cannot produce prose or fill tool arguments—so `normalize_systemone`
 synthesizes a tool call with empty arguments and empty content, and the loop's
 existing "zero tool calls → done" rule handles `__done__`. The harness does not
 grow a branch for "the reasoner can't write"; the provider absorbs it.
+
+---
+
+## The trace, and slym-show
+
+**The trace is the state, and it is the output.** `slym` emits wrapped
+JSONL on stdout — one line per message, tagged with the run's tags:
+
+```jsonl
+{"app":"slym","tags":["audit"],"trace":{"role":"user","content":"what's in this repo?"}}
+{"app":"slym","tags":["audit"],"trace":{"role":"assistant","content":"","tool_calls":[{"id":"call_abc","name":"run","arguments":{"command":"ls"}}]}}
+{"app":"slym","tags":["audit"],"trace":{"role":"tool","tool_call_id":"call_abc","content":"{\"ok\":true,\"exit\":0,\"stdout\":\"README.md\\nLICENSE\\n\",\"stderr\":\"\"}"}}
+{"app":"slym","tags":["audit"],"trace":{"role":"assistant","content":"It has a README and a LICENSE.","tool_calls":[]}}
+```
+
+Because the output is the trace, **every run is composable** — it can be
+piped, copied, forked, truncated, and re-read. The trace is also
+*readable*: `jq` is the query language.
+
+**The human view is `slym-show`.** It is a *consumer* — it reads the
+trace on stdin and prints a view on stdout.
+
+```bash
+# the answer
+slym bundles/shell-run --run "what's in this repository?" | slym-show
+
+# only the final assistant message
+slym bundles/shell-run --run "list files" | slym-show --last
+
+# only the tool calls and results
+slym bundles/shell-run --run "audit this repo" | slym-show --tools
+
+# the tag summary
+slym bundles/shell-run --tag audit --run "audit" | slym-show --tags
+```
+
+`slym-show` uses `gum` for styling if it is installed; without it, the
+view is plain but identical in layout. `slym-show` never calls `slym`,
+and `slym` never calls `slym-show` — the split is runtime, and it is
+preserved.
+
+**The final answer** is a documented `jq` — the last assistant message
+with no tool calls:
+
+```bash
+jq -r 'select(.trace.role=="assistant" and (.trace.tool_calls|length)==0) | .trace.content' | tail -1
+```
+
+`slym-show --last` is that `jq`, with a name.
+
+The trace format is the contract `slym` produces and `slym-show` consumes.
 
 ---
 

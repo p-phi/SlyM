@@ -6,6 +6,8 @@ set -euo pipefail
 SLYM_URL="${SLYM_URL:-https://raw.githubusercontent.com/p-phi/SlyM/main/slym.sh}"
 SLYM_BIN="${SLYM_BIN:-$HOME/.local/bin}"
 
+SLYM_SHOW_URL="${SLYM_URL:-https://raw.githubusercontent.com/p-phi/SlyM/main/slym-show.sh}"
+
 UNATTENDED=false
 for arg in "$@"; do
   case "$arg" in
@@ -83,8 +85,8 @@ if [[ ${#missing[@]} -gt 0 ]]; then
   say "dependencies installed."
 fi
 
+# SLYM
 # ---------------------------------------------------------------- download
-
 tmp=$(mktemp)
 trap 'rm -f "$tmp"' EXIT
 
@@ -102,6 +104,26 @@ mv "$tmp" "$SLYM_BIN/slym"
 trap - EXIT
 
 say "installed $SLYM_BIN/slym"
+
+# SLYM-SHOW
+# ---------------------------------------------------------------- download
+tmp=$(mktemp)
+trap 'rm -f "$tmp"' EXIT
+
+say "downloading $SLYM_SHOW_URL"
+curl -fsSL "$SLYM_SHOW_URL" -o "$tmp" || fail "download failed."
+
+head -n1 "$tmp" | grep -q '^#!' || fail "downloaded file does not look like a script."
+grep -q 'usage: slym-show' "$tmp" || fail "downloaded file does not look like slym."
+
+# ---------------------------------------------------------------- install
+
+mkdir -p "$SLYM_BIN"
+chmod +x "$tmp"
+mv "$tmp" "$SLYM_BIN/slym-show"
+trap - EXIT
+
+say "installed $SLYM_BIN/slym-show"
 
 # ---------------------------------------------------------------- PATH
 

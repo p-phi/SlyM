@@ -4,8 +4,7 @@
 # stdout: a human view
 set -euo pipefail
 
-VERSION="0.0.3"
-STYLE="--border-foreground 100 --border rounded"
+VERSION="0.0.4"
 usage() {
   cat >&2 <<'EOF'
 usage: slym-show [--last | --tools | --tags | --all]
