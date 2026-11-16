@@ -1,0 +1,4 @@
+{"app":"slym","tags":["rewriter"],"trace":{"role":"user","content":"uhh show me users who signed up last month"}}
+{"app":"slym","tags":["rewriter"],"trace":{"role":"assistant","content":"Show users created in the last calendar month.","tool_calls":[]}}
+{"app":"slym","tags":["sql"],"trace":{"role":"user","content":""}}
+{"app":"slym","tags":["sql"],"trace":{"role":"assistant","content":"SELECT * FROM users WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH);","tool_calls":[]}}

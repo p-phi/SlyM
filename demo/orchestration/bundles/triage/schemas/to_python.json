@@ -1,0 +1,6 @@
+{
+    "name": "to_python",
+    "description": "Delegate to the Python writer.",
+    "script": "tools/to_python.sh",
+    "parameters": {}
+}

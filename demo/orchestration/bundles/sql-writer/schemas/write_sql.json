@@ -1,0 +1,8 @@
+{
+    "name": "write_sql",
+    "description": "Produce a SQL query for the task.",
+    "script": "tools/write_sql.sh",
+    "parameters": {
+        "task": "The task to write SQL for."
+    }
+}
