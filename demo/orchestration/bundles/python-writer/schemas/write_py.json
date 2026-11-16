@@ -1,0 +1,8 @@
+{
+    "name": "write_py",
+    "description": "Produce a Python snippet for the task.",
+    "script": "tools/write_py.sh",
+    "parameters": {
+        "task": "The task to write Python for."
+    }
+}

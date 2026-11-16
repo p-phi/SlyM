@@ -326,19 +326,15 @@ call_openai_compatible() {
 # This works great for parameterless scripts (e.g., `check_disk.sh`, `run_tests.sh`, 
 # `fetch_queue.sh`) or skill/sub-agent routing, 
 # where the tool reads from stdin/environment rather than LLM-invented parameters.
-
 call_systemone() {
   local messages_json="$1"
-  local system turns instructions tools_json criteria_json payload
-  
-  # split: system message = skill (context + policy); rest = conversation
+  local system turns criteria_json payload
+
+  # the SKILL.md is the instructions — pass it verbatim, don't template it
   system=$(jq -r '[.[] | select(.role=="system") | .content] | join("\n\n")' <<<"$messages_json")
   turns=$(jq -c '[.[] | select(.role!="system")]' <<<"$messages_json")
 
-  instructions="Select the single best tool to execute next based on the conversation state, or __done__ if finished."
-  [[ -n "$system" ]] && instructions="$system"$'\n\n'"$instructions"
-
-  # Build { "tool_name": "description", ..., "__done__": "Task is complete..." }
+  # the criteria are mechanical: tool name -> description, plus __done__
   criteria_json=$(
     if [[ ${#DECLS[@]} -gt 0 ]]; then
       for name in "${!DECLS[@]}"; do
@@ -346,12 +342,12 @@ call_systemone() {
       done
     fi | jq -s -c 'from_entries + {"__done__": "No further tool calls needed; task is complete."}'
   )
-  
+
   payload=$(jq -n -c \
     --arg model "${SLYM_MODEL:-}" \
     --argjson state "$turns" \
     --argjson criteria "$criteria_json" \
-    --arg instr "$instructions" \
+    --arg instr "$system" \
     '{
       state: $state,
       questions: {

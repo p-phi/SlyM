@@ -1,0 +1,6 @@
+{
+    "name": "to_sql",
+    "description": "Delegate to the SQL writer.",
+    "script": "tools/to_sql.sh",
+    "parameters": {}
+}

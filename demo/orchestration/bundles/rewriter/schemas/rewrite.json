@@ -1,0 +1,8 @@
+{
+    "name": "rewrite",
+    "description": "Rewrite a user request into one clear task sentence.",
+    "script": "tools/rewrite.sh",
+    "parameters": {
+        "request": "The original user request to normalize."
+    }
+}
