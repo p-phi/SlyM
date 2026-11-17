@@ -3,8 +3,6 @@
     "description": "Read a file at the given path under the skills directory.",
     "script": "tools/read_file.sh",
     "parameters": {
-        "properties": {
-            "path": "Path relative to the skills directory."
-        }
+        "path": "Path relative to the skills directory."
     }
 }
