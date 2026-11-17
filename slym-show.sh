@@ -148,7 +148,7 @@ fi
 case "$view" in
   default) selected="$input" ;;
   last)
-    selected=$(jq -c '
+    selected=$(jq -c -s '
       [ .[] | select(.trace.role=="assistant" and ((.trace.tool_calls // [])|length)==0) ]
       | last
       | select(. != null)

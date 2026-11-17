@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 
 export TRACE_FILE
+export SLYM_THINK_BUFFER=0
 TRACE_FILE=$(mktemp)
-export SLYM_BIN="../../slym.sh"
+export SLYM_BIN="${DEMO_SLYM_BIN:-../../slym.sh}"
 # rewriter → triage (System 1) → specialist, each trace tee'd
 
 # preprocess → route (the router's tool does the rest)

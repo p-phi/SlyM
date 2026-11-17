@@ -12,6 +12,8 @@ env_args=()
 
 cat "${TRACE_FILE:--}" \
   | env "${env_args[@]}" \
-  "$SLYM_BIN"  --tag sql bundles/sql-writer \
+  "$SLYM_BIN" --tag sql bundles/sql-writer \
   | tee "${SLYM_TRACE_DIR:-.}/sql-writer.jsonl" \
-  && echo "WORK DONE"
+  | slym-show --raw --flatten \
+  && printf "\n%s" "WORK DONE"
+
