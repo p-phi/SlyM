@@ -5,4 +5,4 @@ set -euo pipefail
 current_time=$(date '+%H:%M:%S')
 
 # Output the result
-echo '{"time": "'$current_time'", "message": "Current time retrieved successfully."}'
+echo "$current_time"

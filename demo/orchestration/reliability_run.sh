@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-ROUNDS="${BENCHMARK_ROUNDS:-10}"
+ROUNDS="${RELIABILITY_RUN_ROUNDS:-10}"
 
 for ((i = 0; i < ROUNDS; i++)); do
-    { time ./pipeline.sh > "benchmark_results/trace_round_$i"; } \
-        2> "benchmark_results/time_round_$i"
+    { time ./pipeline.sh > "reliability_runs/trace_round_$i"; } \
+        2> "reliability_runs/time_round_$i"
     done

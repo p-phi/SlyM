@@ -1,0 +1,6 @@
+{"app":"slym","tags":["time"],"trace":{"role":"user","content":"What time is it now?"}}
+{"app":"slym","tags":["time"],"trace":{"role":"assistant","content":"","tool_calls":[{"id":"NBbbH9cAYyW1qnin0OpjSHwz8FqCGOwR","name":"get_current_time","arguments":{}}]}}
+{"app":"slym","tags":["time"],"trace":{"role":"tool","tool_call_id":"NBbbH9cAYyW1qnin0OpjSHwz8FqCGOwR","content":"{\"ok\":true,\"exit\":0,\"stdout\":\"23:37:29\",\"stderr\":\"\"}"}}
+{"app":"slym","tags":["time"],"trace":{"role":"assistant","content":"The current time is **23:37:29**.","tool_calls":[]}}
+{"app":"slym","tags":["day_night"],"trace":{"role":"user","content":""}}
+{"app":"slym","tags":["day_night"],"trace":{"role":"assistant","content":"The current time is nighttime.","tool_calls":[]}}
