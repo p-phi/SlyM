@@ -31,6 +31,8 @@ USAGE_ERROR=1
 # ---------------------------------------------------------------- config
 # Iteration control
 MAX_ITERATIONS="${SLYM_MAX_ITERATIONS:-16}"
+# If CAP_IS_SUCCESS is set to 1, reaching MAX_ITERATIONS exits 0
+CAP_IS_SUCCESS="${SLYM_CAP_IS_SUCCESS:-0}"
 # Allows the model to return pure text responses without tools for up to THINK_BUFFER rounds
 THINK_BUFFER="${SLYM_THINK_BUFFER:-1}"
 REQUEST_INTERVAL="${SLYM_REQUEST_INTERVAL:-0}"
@@ -58,7 +60,6 @@ options:
   --show_config        show the current loaded configuration
   -h, --help           show this help
   -v, --version        show the version
-  -t, --trace          stdout = wrapped JSONL trace
 
 providers:
   openai-compatible    OpenAI chat-completions shape (Ollama, Groq, Together, ...)
@@ -70,6 +71,7 @@ environment:
   SLYM_API_KEY    optional; bearer token for a hosted provider
   SLYM_PROVIDER   optional; default provider shape
   SLYM_MAX_ITERATIONS  optional; loop cap, default 16
+  SLYM_CAP_IS_SUCCESS  optional; 1 = hitting the cap exits 0 (default 0 = exit 1)
   SLYM_THINK_BUFFER  optional; max rounds without tool, default 1
 EOF
   exit "$USAGE_ERROR"
@@ -89,6 +91,7 @@ show_config() {
   echo "SLYM_MODEL=$SLYM_MODEL" 
   echo "SLYM_PROVIDER=$PROVIDER" 
   echo "SLYM_MAX_ITERATIONS=$MAX_ITERATIONS" 
+  echo "SLYM_CAP_IS_SUCCESS=$CAP_IS_SUCCESS"
   echo "SLYM_THINK_BUFFER=$THINK_BUFFER"   
   exit 0
 }
@@ -604,6 +607,10 @@ main() {
           | wrap_message
     done
   done
+  if [[ "$CAP_IS_SUCCESS" == "1" ]]; then
+  # the cap was the intended stop (e.g. a System 1 router doing one decision)
+    exit 0
+  fi
   echo "error: max iterations ($MAX_ITERATIONS) reached" >&2
   exit 1
 }

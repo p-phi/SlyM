@@ -1,0 +1,11 @@
+==== Running pipeline on broken code ====
+```javascript
+function broken() { return
+```
+→ Routing to: Code Reviewer
+
+==== Running pipeline on valid code ====
+```javascript
+function valid() { return; }
+```
+→ git push to staging

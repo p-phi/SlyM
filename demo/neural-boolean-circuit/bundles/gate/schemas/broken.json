@@ -1,0 +1,6 @@
+{
+    "name": "broken",
+    "description": "Select this if the code contains errors, bugs, or is incomplete.",
+    "script": "tools/broken.sh",
+    "parameters": {}
+}
