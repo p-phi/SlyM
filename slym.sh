@@ -436,10 +436,10 @@ normalize_systemone() {
     jq -n -c --arg c "Done (confidence: $conf)" \
       '{role: "assistant", content: $c, tool_calls: []}'
   else
-    jq -n -c --arg id "$call_id" --arg name "$choice" --arg conf "$conf" \
+      jq -n -c --arg id "$call_id" --arg name "$choice" --arg conf "$choice (confidence: $conf)" \
       '{
         role: "assistant",
-        content: "",
+        content: $conf,
         tool_calls: [{id: $id, name: $name, arguments: {}}]
       }'
   fi
