@@ -37,6 +37,7 @@ CAP_IS_SUCCESS="${SLYM_CAP_IS_SUCCESS:-0}"
 THINK_BUFFER="${SLYM_THINK_BUFFER:-1}"
 REQUEST_INTERVAL="${SLYM_REQUEST_INTERVAL:-0}"
 NO_SPINNER="${SLYM_NO_SPINNER:-0}"
+NO_TOOL=0
 # Provider shape (default: OpenAI-compatible)
 PROVIDER="${SLYM_PROVIDER:-openai-compatible}"
 SPIN_PID=""
@@ -58,6 +59,7 @@ options:
   --provider <name>    provider shape (default: openai-compatible)
   --tag <name>         tag trace lines (implies --trace); repeatable
   --show_config        show the current loaded configuration
+  --no-tool            exits 0 on tool call after tracing it
   -h, --help           show this help
   -v, --version        show the version
 
@@ -104,6 +106,8 @@ while [[ $# -gt 0 ]]; do
     --provider)
       [[ -n "${2:-}" ]] || usage
       PROVIDER="$2"; shift 2 ;;
+    --no-tool) 
+        NO_TOOL=1; shift ;;
     -h|--help)
       USAGE_ERROR=0
       usage ;;
@@ -168,10 +172,27 @@ if [[ ! -t 0 ]]; then
   fi
 fi
 
+# ---------------------------------------------------------------- resume
+# If stdin ended on an assistant tool_call with no tool result, and no new
+# task was given, run the pending tool(s) and continue from there.
+RESUME_TOOL_CALLS=""
+if [[ -n "$TRACE_MESSAGES" && -z "$TASK" ]]; then
+  last_role=$(jq -r 'if length > 0 then .[-1].role else empty end' <<<"$TRACE_MESSAGES")
+  if [[ "$last_role" == "assistant" ]]; then
+    pending=$(jq -c '.[-1].tool_calls // []' <<<"$TRACE_MESSAGES")
+    if [[ "$(jq 'length' <<<"$pending")" -gt 0 ]]; then
+      RESUME_TOOL_CALLS="$pending"
+    fi
+  fi
+fi
+# ----------------------------------------------------------------
+
+
 # Validate required args and permissions
 [[ -n "$SKILLS_DIR" ]] || usage
 [[ -d "$SKILLS_DIR" ]] || { echo "error: skills dir not found: $SKILLS_DIR" >&2; exit 1; }
 
+# Parse provider
 case "$PROVIDER" in
   openai-compatible|system-one) ;;
   *) echo "error: unknown provider: $PROVIDER" >&2; usage ;;
@@ -560,6 +581,24 @@ main() {
       '[{role:"system",content:$s}, $p]')
   fi
 
+  # resume
+  # Execute any tool calls the incoming trace left pending, so the
+  # conversation is well-formed (every tool_call has a tool result).
+  if [[ -n "$RESUME_TOOL_CALLS" ]]; then
+    local rn rj rname rargs rcall rresult
+    rn=$(jq 'length' <<<"$RESUME_TOOL_CALLS")
+    for ((rj = 0; rj < rn; rj++)); do
+      rname=$(jq -r ".[$rj].name" <<<"$RESUME_TOOL_CALLS")
+      rargs=$(jq -c ".[$rj].arguments" <<<"$RESUME_TOOL_CALLS")
+      rcall=$(jq -r ".[$rj].id" <<<"$RESUME_TOOL_CALLS")
+      rresult=$(run_tool "$rname" "$rargs")
+      messages=$(jq -c --arg id "$rcall" --arg content "$rresult" \
+        '. + [{role: "tool", tool_call_id: $id, content: $content}]' <<<"$messages")
+      jq -nc --arg id "$rcall" --arg content "$rresult" \
+          '{role:"tool", tool_call_id:$id, content:$content}' | wrap_message
+    done
+  fi
+
   # Main conversation loop
   local i resp normalized calls
   local buffer=0
@@ -594,6 +633,13 @@ main() {
     # Handle tool calls
     local n j name args call_id result
     n=$(jq 'length' <<<"$calls")
+    
+    # --no-tool: a tool call is the terminal condition. Emit the trace as-is
+    # (already done above) and exit 0 without executing anything.
+    if [[ "$NO_TOOL" == "1" && "$n" -gt 0 ]]; then
+      exit 0
+    fi
+    
     for ((j = 0; j < n; j++)); do
       name=$(jq -r ".[$j].name" <<<"$calls")
       args=$(jq -c ".[$j].arguments" <<<"$calls")
