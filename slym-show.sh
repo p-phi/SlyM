@@ -126,6 +126,7 @@ render_line() {
     assistant)
       if [[ -n "$tool" ]]; then
         printf '%s- tool call: %s%s\n' "$C_BOLD$C_GREY" "$tool" "$C_RESET"
+        msg_tool "$content"
         msg_tool "$args"
       else
         label="assistant"
