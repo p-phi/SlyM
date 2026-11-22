@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.5]
+### Added
+- Resumption support for interrupted `tool_call` traces
+- `--no-tool` flag to exit 0 when a tool call is emitted
+- Confidence score in system one trace
+- `release.sh` script for versioning
+
 ## [0.0.4]
 ### Added
 - `system-one` provider for bounded-decision endpoints, configurable with `SLYM_PROVIDER=system-one` and `SLYM_ENDPOINT`.
