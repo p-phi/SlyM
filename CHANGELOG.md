@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.0.6]
+### Fixed
+- Fix E2BIG on jq by using pipes instead of heredocs"
+
 ## [0.0.5]
 ### Added
 - Resumption support for interrupted `tool_call` traces
