@@ -177,9 +177,9 @@ fi
 # task was given, run the pending tool(s) and continue from there.
 RESUME_TOOL_CALLS=""
 if [[ -n "$TRACE_MESSAGES" && -z "$TASK" ]]; then
-  last_role=$(jq -r 'if length > 0 then .[-1].role else empty end' <<<"$TRACE_MESSAGES")
+  last_role=$(printf '%s' "$TRACE_MESSAGES" | jq -r 'if length > 0 then .[-1].role else empty end')
   if [[ "$last_role" == "assistant" ]]; then
-    pending=$(jq -c '.[-1].tool_calls // []' <<<"$TRACE_MESSAGES")
+    pending=$(printf '%s' "$TRACE_MESSAGES" | jq -c '.[-1].tool_calls // []')
     if [[ "$(jq 'length' <<<"$pending")" -gt 0 ]]; then
       RESUME_TOOL_CALLS="$pending"
     fi
@@ -312,35 +312,35 @@ build_tools_json() {
 call_model() {
   local messages_json="$1"
   case "$PROVIDER" in
-    openai-compatible) call_openai_compatible "$messages_json" ;;
-    system-one) call_systemone "$messages_json" ;;
+    openai-compatible) printf '%s' "$messages" | call_openai_compatible ;;
+    system-one) printf '%s' "$messages" | call_systemone ;;
     *) echo "error: unknown provider: $PROVIDER" >&2; return 1 ;;
     # responses)         call_responses "$messages_json" ;;
   esac
 }
 
+
 call_openai_compatible() {
-  local messages_json="$1"
-  local tools_json payload wire_messages
+  local tools_json
   tools_json=$(build_tools_json)
 
-  wire_messages=$(jq -c '
-    [ .[] | if .tool_calls then
-        .tool_calls = [ .tool_calls[] | {
-          id: .id,
-          type: "function",
-          function: {name: .name, arguments: (.arguments | tojson)}
-        } ]
-      else . end ]
-  ' <<<"$messages_json")
-
-  payload=$(jq -n -c \
-    --arg model "$SLYM_MODEL" \
-    --argjson messages "$wire_messages" \
-    --argjson tools "$tools_json" \
-    '{model: $model, messages: $messages, tools: $tools, stream: false}')
-
-  post_json "$payload"
+  # the conversation streams through the rewrite into the payload builder;
+  # messages: . reads it from stdin (no --argjson, no E2BIG)
+  printf '%s' "$messages_json" \
+    | jq -c '
+        [ .[] | if .tool_calls then
+            .tool_calls = [ .tool_calls[] | {
+              id: .id,
+              type: "function",
+              function: {name: .name, arguments: (.arguments | tojson)}
+            } ]
+          else . end ]
+      ' \
+    | jq -c \
+        --arg model "$SLYM_MODEL" \
+        --argjson tools "$tools_json" \
+        '{model: $model, messages: ., tools: $tools, stream: false}' \
+    | post_json
 }
 
 # -------------- System One Provider-------------------------
@@ -350,15 +350,18 @@ call_openai_compatible() {
 # This works great for parameterless scripts (e.g., `check_disk.sh`, `run_tests.sh`, 
 # `fetch_queue.sh`) or skill/sub-agent routing, 
 # where the tool reads from stdin/environment rather than LLM-invented parameters.
+
+# call_systemone: reads the conversation from stdin (JSON array),
+# streams it into the payload builder, pipes to post_json.
+# system and criteria stay --arg / --argjson (usually small).
 call_systemone() {
-  local messages_json="$1"
-  local system turns criteria_json payload
+  local system criteria_json
 
-  # the SKILL.md is the instructions — pass it verbatim, don't template it
-  system=$(jq -r '[.[] | select(.role=="system") | .content] | join("\n\n")' <<<"$messages_json")
-  turns=$(jq -c '[.[] | select(.role!="system")]' <<<"$messages_json")
+  # read the conversation once (it's used twice: system-extract and turns)
+  conv=$(cat)
 
-  # the criteria are mechanical: tool name -> description, plus __done__
+  system=$(printf '%s' "$conv" | jq -r '[.[] | select(.role=="system") | .content] | join("\n\n")')
+
   criteria_json=$(
     if [[ ${#DECLS[@]} -gt 0 ]]; then
       for name in "${!DECLS[@]}"; do
@@ -367,23 +370,24 @@ call_systemone() {
     fi | jq -s -c 'from_entries + {"__done__": "No further tool calls needed; task is complete."}'
   )
 
-  payload=$(jq -n -c \
-    --arg model "${SLYM_MODEL:-}" \
-    --argjson state "$turns" \
-    --argjson criteria "$criteria_json" \
-    --arg instr "$system" \
-    '{
-      state: $state,
-      questions: {
-        next_tool: {
-          type: "choice",
-          instructions: $instr,
-          criteria: $criteria
+  # the conversation streams through; turns become `state: .` (no --argjson state)
+  printf '%s' "$conv" \
+    | jq -c '[.[] | select(.role!="system")]' \
+    | jq -c \
+        --arg model "${SLYM_MODEL:-}" \
+        --argjson criteria "$criteria_json" \
+        --arg instr "$system" \
+      '{
+        state: .,
+        questions: {
+          next_tool: {
+            type: "choice",
+            instructions: $instr,
+            criteria: $criteria
+          }
         }
-      }
-    } | if $model != "" then . + {model: $model} else . end')
-
-  post_json "$payload"
+      } | if $model != "" then . + {model: $model} else . end' \
+    | post_json
 }
 
 # call_responses() {
@@ -392,11 +396,12 @@ call_systemone() {
 #   exit 1
 # }
 
+# post_json: read the payload from stdin, send it to the endpoint.
+# the payload is a *stream* (never an argument), so it can be any size.
 post_json() {
-  local payload="$1"
   local -a headers=(-H "Content-Type: application/json")
   [[ -n "$API_KEY" ]] && headers+=(-H "Authorization: Bearer $API_KEY")
-  curl -sS "${headers[@]}" -d "$payload" "$SLYM_ENDPOINT"
+  curl -sS "${headers[@]}" -d @- "$SLYM_ENDPOINT"
 }
 
 normalize_response() {
@@ -574,8 +579,8 @@ main() {
   
   # messages: inject it as a JSON value via --argjson, not string concat
   if [[ -n "$TRACE_MESSAGES" ]]; then
-    messages=$(jq -c --arg s "$system" --argjson p "$prompt" \
-      '[{role:"system",content:$s}] + . + [$p]' <<<"$TRACE_MESSAGES")
+    messages=$(printf '%s' "$TRACE_MESSAGES" | jq -c --arg s "$system" --argjson p "$prompt" \
+      '[{role:"system",content:$s}] + . + [$p]')
   else
     messages=$(jq -nc --arg s "$system" --argjson p "$prompt" \
       '[{role:"system",content:$s}, $p]')
@@ -592,8 +597,8 @@ main() {
       rargs=$(jq -c ".[$rj].arguments" <<<"$RESUME_TOOL_CALLS")
       rcall=$(jq -r ".[$rj].id" <<<"$RESUME_TOOL_CALLS")
       rresult=$(run_tool "$rname" "$rargs")
-      messages=$(jq -c --arg id "$rcall" --arg content "$rresult" \
-        '. + [{role: "tool", tool_call_id: $id, content: $content}]' <<<"$messages")
+      messages=$(printf '%s' "$messages" | jq -c --arg id "$rcall" --arg content "$rresult" \
+        '. + [{role: "tool", tool_call_id: $id, content: $content}]')
       jq -nc --arg id "$rcall" --arg content "$rresult" \
           '{role:"tool", tool_call_id:$id, content:$content}' | wrap_message
     done
@@ -618,7 +623,7 @@ main() {
     calls=$(jq -c '.tool_calls' <<<"$normalized")
     wrap_message <<<"$normalized"
     # Add response to messages
-    messages=$(jq -c --argjson m "$normalized" '. + [$m]' <<<"$messages")
+    messages=$(printf '%s' "$messages" | jq -c --argjson m "$normalized" '. + [$m]')
 
     # Buffer or return based on conditions
     # This allows some models to use tools better
@@ -646,8 +651,8 @@ main() {
       call_id=$(jq -r ".[$j].id" <<<"$calls")
       result=$(run_tool "$name" "$args")
       # Reconstruct messages with tool response
-      messages=$(jq -c --arg id "$call_id" --arg content "$result" \
-        '. + [{role: "tool", tool_call_id: $id, content: $content}]' <<<"$messages")
+      messages=$(printf '%s' "$messages" | jq -c --arg id "$call_id" --arg content "$result" \
+        '. + [{role: "tool", tool_call_id: $id, content: $content}]')
       jq -nc --arg id "$call_id" --arg content "$result" \
           '{role:"tool", tool_call_id:$id, content:$content}' \
           | wrap_message
