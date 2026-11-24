@@ -140,37 +140,43 @@ render_line() {
 }
 
 # ---------------------------------------------------------------- main
-input=$(cat)
-[[ -z "$input" ]] && usage
-if [[ $flatten -eq 1 ]]; then
-  input=$(printf '%s\n' "$input" | flatten_traces)
-fi
-
-case "$view" in
-  default) selected="$input" ;;
-  last)
-    selected=$(jq -c -s '
-      [ .[] | select(.trace.role=="assistant" and ((.trace.tool_calls // [])|length)==0) ]
-      | last
-      | select(. != null)
-    ' <<<"$input")
-    ;;
-  tools)
-    selected=$(jq -c 'select(.trace.role=="tool" or ((.trace.tool_calls // [])|length)>0)' <<<"$input")
-    ;;
-  tags)
-    selected=$(jq -r '.tags[]? // empty' <<<"$input" | sort -u)
-    ;;
-esac
+# slym-show is a filter: stdin -> (optional flatten) -> view -> (render | raw) -> stdout.
+# no variable ever holds the whole trace; jq reads stdin, the shell streams.
 
 if [[ $raw -eq 1 ]]; then
-  printf '%s\n' "$selected"
+  # --raw: emit the view's selection as JSONL, unrendered
+  {
+    if [[ $flatten -eq 1 ]]; then flatten_traces; else cat; fi
+  } | case "$view" in
+    default) cat ;;
+    last)
+      jq -s 'last(.[] | select(.trace.role=="assistant" and ((.trace.tool_calls // [])|length)==0)) | select(. != null)'
+      ;;
+    tools)
+      jq -c 'select(.trace.role=="tool" or ((.trace.tool_calls // [])|length)>0)'
+      ;;
+    tags)
+      jq -r '.tags[]? // empty' | sort -u
+      ;;
+  esac
 else
-  if [[ "$view" == "tags" ]]; then
-    printf '%s\n' "$selected"
-  else
-    while IFS= read -r line; do
-      [[ -n "$line" ]] && render_line "$line"
-    done <<<"$selected"
-  fi
+  # rendered: the view streams into render_line
+  {
+    if [[ $flatten -eq 1 ]]; then flatten_traces; else cat; fi
+  } | case "$view" in
+    default)
+      while IFS= read -r line; do [[ -n "$line" ]] && render_line "$line"; done
+      ;;
+    last)
+      jq -cs 'last(.[] | select(.trace.role=="assistant" and ((.trace.tool_calls // [])|length)==0)) | select(. != null)' \
+        | while IFS= read -r line; do [[ -n "$line" ]] && render_line "$line"; done
+      ;;
+    tools)
+      jq -c 'select(.trace.role=="tool" or ((.trace.tool_calls // [])|length)>0)' \
+        | while IFS= read -r line; do [[ -n "$line" ]] && render_line "$line"; done
+      ;;
+    tags)
+      jq -r '.tags[]? // empty' | sort -u
+      ;;
+  esac
 fi
