@@ -295,6 +295,42 @@ The trace format is the contract `slym` produces and `slym-show` consumes.
 
 ---
 
+
+## slymsh: Conversational Shell Integration
+
+<img src="./assets/slymsh.gif">
+
+`slymsh` is a companion tool that embeds a conversational AI step directly into your recorded shell session. It lets you ask questions about what just happened in your terminal without breaking your workflow, opening a browser, or leaving the shell.
+
+**How it works:**
+1. It starts a recorded subshell (using `script`).
+2. You run your normal commands.
+3. When you need context, you type `ai <question>`.
+4. `slymsh` slices the terminal output since your last query, appends it to the SlyM trace, and fetches an answer.
+
+**Usage:**
+```bash
+# Start the session
+slymsh
+
+# ask something
+ai your question
+
+exit
+# or CTRL+D to exit and auto-save the current session
+```
+
+**Key features:**
+- **Zero framework bloat:** Just `bash`, `script`, `jq`, and `slym`. No Python, no custom terminal emulators.
+- **Multiline input:** Type `ai` and press Enter twice for interactive, multiline questions.
+- **Trace-based state:** The session history is just a JSONL trace. You can resume it later, fork it, or pipe it to other agents.
+- **Resilient:** Network or API errors print a warning and preserve your shell session, allowing you to simply retry.
+- **Shell-native:** Works with both `bash` and `zsh`, sourcing your existing configuration (`~/.bashrc` or `~/.zshrc`) so all your aliases, PATH customizations, and plugins work seamlessly.
+
+**The agent is still `slym`.** `slymsh` just captures the terminal context and feeds it to `slym`. If your bundle declares tools (like `bundles/shell-run`), the AI can actively investigate or even execute commands to answer your question. The trace captures the entire chain of thought: your question, the tool calls, the raw outputs, and the final answer.
+
+---
+
 ## Workflows
 
 **Compose agents with pipes.** The pipe carries the trace, so the next
