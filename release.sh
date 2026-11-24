@@ -21,7 +21,7 @@ sed -i "s/^VERSION=\".*\"/VERSION=\"$VERSION\"/" slym.sh
 sed -i "s/^VERSION=\".*\"/VERSION=\"$VERSION\"/" slym-show.sh
 
 # Create git tag
-git add slym.sh slym-show.sh
+git add slym.sh slym-show.sh slymsh.sh
 git commit -m "Release v$VERSION"
 git tag -a "v$VERSION" -m "Release v$VERSION"
 git push && git push --tags
@@ -30,6 +30,6 @@ git push && git push --tags
 gh release create v"$VERSION" \
   --title "v$VERSION" \
   --notes "See CHANGELOG.md for details" \
-  slym.sh slym-show.sh install.sh
+  slym.sh slym-show.sh slymsh.sh
 
 echo "Released v$VERSION"
