@@ -7,6 +7,7 @@ SLYM_URL="${SLYM_URL:-https://raw.githubusercontent.com/p-phi/SlyM/main/slym.sh}
 SLYM_BIN="${SLYM_BIN:-$HOME/.local/bin}"
 
 SLYM_SHOW_URL="${SLYM_SHOW_URL:-https://raw.githubusercontent.com/p-phi/SlyM/main/slym-show.sh}"
+SLYMSH_URL="${SLYM_SHOW_URL:-https://raw.githubusercontent.com/p-phi/SlyM/main/slymsh.sh}"
 
 UNATTENDED=false
 for arg in "$@"; do
@@ -125,6 +126,25 @@ trap - EXIT
 
 say "installed $SLYM_BIN/slym-show"
 
+# SLYMSH
+# ---------------------------------------------------------------- download
+tmp=$(mktemp)
+trap 'rm -f "$tmp"' EXIT
+
+say "downloading $SLYMSH_URL"
+curl -fsSL "$SLYMSH_URL" -o "$tmp" || fail "download failed."
+
+head -n1 "$tmp" | grep -q '^#!' || fail "downloaded file does not look like a script."
+grep -q 'slymsh — a recorded shell with a conversational ai step.' "$tmp" || fail "downloaded file does not look like slymsh."
+
+# ---------------------------------------------------------------- install
+
+mkdir -p "$SLYM_BIN"
+chmod +x "$tmp"
+mv "$tmp" "$SLYM_BIN/slym-show"
+trap - EXIT
+
+say "installed $SLYM_BIN/slym-show"
 # ---------------------------------------------------------------- PATH
 
 case ":$PATH:" in
