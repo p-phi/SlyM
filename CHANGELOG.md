@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.0.7]
+### Added
+- slymsh: SlyM integration for your shell (bash and zsh supported)
+- slymsh installation into install.sh
+- version and usage into slym-show
+
 ## [0.0.6]
 ### Fixed
 - Fix E2BIG on jq by using pipes instead of heredocs"

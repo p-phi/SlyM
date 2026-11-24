@@ -7,11 +7,13 @@
 # dependencies: bash, jq
 set -euo pipefail
 
+VERSION="0.0.7"
 MAXIMUM_NESTING_DEPTH="${SLYM_SHOW_MAXIMUM_NESTING_DEPTH:-10}"
+NAME="$0"
 
 usage() {
   cat >&2 <<'EOF'
-usage: slym-show [--last | --tools | --tags | --all] [--raw] [--flatten]
+usage: $NAME [--last | --tools | --tags | --all] [--raw] [--flatten]
 
 views:
   (default)   the full loop
@@ -24,15 +26,26 @@ flags:
   --raw       emit JSONL (no rendering); composes with any view
   --flatten   hoist nested traces (recursively) to the root level
 
+information:
+  -v, --version    Show version and exit
+  -h, --help       Show this help and exit
+
 environment:
   SLYM_SHOW_MAXIMUM_NESTING_DEPTH     (optional) sets maximum nesting depth when flattening a trace (default=10).
 
 reads a SlyM trace on stdin; writes a human view (or JSONL with --raw) on stdout.
 EOF
-  exit 1
+exit "$IS_SUCCESS"
 }
 
+version() {
+  echo "$NAME v$VERSION"
+  exit 0
+}
+
+
 # ---------------------------------------------------------------- args
+IS_SUCCESS=0
 view=default
 raw=0
 flatten=0
@@ -45,9 +58,17 @@ while [[ $# -gt 0 ]]; do
     --raw)     raw=1;        shift ;;
     --flatten) flatten=1;    shift ;;
     -h|--help) usage ;;
-    *) usage ;;
+    -v|--version) version ;;
+    *) IS_SUCCESS=1 usage ;;
   esac
 done
+
+# If stdin is a terminal (not piped), show usage
+if [[ -t 0 ]]; then
+  IS_SUCCESS=1
+  usage
+fi
+
 # ---------------------------------------------------------------- styling
 # inline ANSI — the terminal is the styling engine; no gum, no dependency.
 # only used when rendering (raw=0); --raw bypasses all of this.
