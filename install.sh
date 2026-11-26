@@ -7,7 +7,7 @@ SLYM_URL="${SLYM_URL:-https://raw.githubusercontent.com/p-phi/SlyM/main/slym.sh}
 SLYM_BIN="${SLYM_BIN:-$HOME/.local/bin}"
 
 SLYM_SHOW_URL="${SLYM_SHOW_URL:-https://raw.githubusercontent.com/p-phi/SlyM/main/slym-show.sh}"
-SLYMSH_URL="${SLYM_SHOW_URL:-https://raw.githubusercontent.com/p-phi/SlyM/main/slymsh.sh}"
+SLYMSH_URL="${SLYMSH_URL:-https://raw.githubusercontent.com/p-phi/SlyM/main/slymsh.sh}"
 
 UNATTENDED=false
 for arg in "$@"; do
@@ -115,7 +115,7 @@ say "downloading $SLYM_SHOW_URL"
 curl -fsSL "$SLYM_SHOW_URL" -o "$tmp" || fail "download failed."
 
 head -n1 "$tmp" | grep -q '^#!' || fail "downloaded file does not look like a script."
-grep -q 'usage: slym-show' "$tmp" || fail "downloaded file does not look like slym-show."
+grep -q 'reads a SlyM trace on stdin; writes a human view (or JSONL with --raw) on stdout.' "$tmp" || fail "downloaded file does not look like slym-show."
 
 # ---------------------------------------------------------------- install
 
