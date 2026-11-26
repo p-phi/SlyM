@@ -141,10 +141,10 @@ grep -q 'slymsh — a recorded shell with a conversational ai step.' "$tmp" || f
 
 mkdir -p "$SLYM_BIN"
 chmod +x "$tmp"
-mv "$tmp" "$SLYM_BIN/slym-show"
+mv "$tmp" "$SLYM_BIN/slymsh"
 trap - EXIT
 
-say "installed $SLYM_BIN/slym-show"
+say "installed $SLYM_BIN/slymsh"
 # ---------------------------------------------------------------- PATH
 
 case ":$PATH:" in
