@@ -19,6 +19,7 @@ fi
 # Update version in all relevant files
 sed -i "s/^VERSION=\".*\"/VERSION=\"$VERSION\"/" slym.sh
 sed -i "s/^VERSION=\".*\"/VERSION=\"$VERSION\"/" slym-show.sh
+sed -i "s/^VERSION=\".*\"/VERSION=\"$VERSION\"/" slymsh.sh
 
 # Create git tag
 git add slym.sh slym-show.sh slymsh.sh
