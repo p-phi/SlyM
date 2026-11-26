@@ -3,7 +3,7 @@
 set -euo pipefail
 
 # --- Metadata ---
-VERSION="0.1.0"
+VERSION="0.0.7"
 NAME="slymsh"
 
 # --- Help & Version ---
